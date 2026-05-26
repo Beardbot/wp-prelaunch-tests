@@ -48,3 +48,21 @@ npm run add-site -- <url>
 - `docs/workflow.md` — development stage gates, how to add a test, staging checklist
 - `docs/selectors.md` — `data-wpt` convention, Elementor setup, selector priority order
 - `docs/custom-journeys.md` — how to write a custom journey for unique per-site plugins
+
+## Roadmap
+
+Phase 1 is complete. The original architecture plan lives at:
+`C:\Users\roshe\.claude\plans\i-want-to-plan-partitioned-cherny.md`
+
+### Phase 2 — CI and ongoing monitoring
+- `config/sites.ci.json` — committed config for CI (URLs only, no credentials)
+- GitHub Actions workflow: `workflow_dispatch` + scheduled weekly run
+- Post-deploy webhook trigger from deploy script
+- Slack failure notifications in `src/notifier.js`
+- New templates: `journeys/templates/product-filter.js`, `journeys/templates/post-filter.js`
+- `productionUrl` site config field for post-launch smoke-only checks
+
+### Phase 3 — Coverage and mobile (no fixed timeline)
+- Mobile viewport runs (`{ width: 390, height: 844 }`)
+- `visualMask` array in site config for dynamic content regions
+- `--journey` CLI filter flag
