@@ -1,0 +1,86 @@
+{
+  "sites": [
+    {
+      "name": "Example Brochure Site",
+      "key": "example-brochure",
+      "url": "https://staging.example.com",
+      "pages": ["/", "/about", "/services", "/contact", "/blog"],
+      "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
+      "journeys": ["templates/contact-form", "templates/search"],
+      "auth": null,
+      "journeyOptions": {
+        "templates/contact-form": {
+          "path": "/contact",
+          "fields": [
+            { "label": "Your Name",    "value": "Test User" },
+            { "label": "Email",        "value": "test+noreply@youragency.com" },
+            { "label": "Message",      "value": "Automated test — please ignore." }
+          ],
+          "submitSelector": "[data-wpt='contact-form-submit']",
+          "successText": "Thank you for your message"
+        },
+        "templates/search": {
+          "query": "about",
+          "minResults": 1
+        }
+      }
+    },
+    {
+      "name": "Example WooCommerce Shop",
+      "key": "example-shop",
+      "url": "https://staging.shop.example.com",
+      "pages": ["/", "/shop", "/contact", "/about"],
+      "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
+      "journeys": ["templates/woocommerce", "templates/contact-form", "templates/search"],
+      "auth": null,
+      "journeyOptions": {
+        "templates/woocommerce": {
+          "shopPath": "/shop",
+          "cartPath": "/cart",
+          "checkoutPath": "/checkout",
+          "productOffset": 0
+        },
+        "templates/contact-form": {
+          "path": "/contact",
+          "fields": [
+            { "label": "Name",    "value": "Test User" },
+            { "label": "Email",   "value": "test+noreply@youragency.com" },
+            { "label": "Message", "value": "Automated test — please ignore." }
+          ],
+          "submitSelector": "[data-wpt='contact-form-submit']",
+          "successText": "Thank you"
+        },
+        "templates/search": {
+          "query": "product",
+          "resultSelector": ".products .product",
+          "minResults": 1
+        }
+      }
+    },
+    {
+      "name": "Example Membership Site",
+      "key": "example-members",
+      "url": "https://staging.members.example.com",
+      "pages": ["/", "/about", "/membership"],
+      "journeys": ["templates/login", "custom/members-portal"],
+      "auth": null,
+      "journeyOptions": {
+        "templates/login": {
+          "loginPath": "/my-account",
+          "successSelector": "[data-wpt='member-dashboard']"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "screenshotWidth": 1280,
+    "screenshotHeight": 900,
+    "diffThreshold": 0.02,
+    "timeout": 15000,
+    "notifications": {
+      "email": {
+        "enabled": false
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "wp-prelaunch-tests",
+  "version": "1.0.0",
+  "description": "Pre-launch functional testing for WordPress/Elementor sites",
+  "main": "index.js",
+  "bin": {
+    "prelaunch-test": "./bin/test.js",
+    "prelaunch-baseline": "./bin/baseline.js",
+    "prelaunch-add-site": "./bin/add-site.js"
+  },
+  "scripts": {
+    "postinstall": "npx playwright install chromium",
+    "baseline": "node index.js --mode baseline",
+    "test": "node index.js --mode test",
+    "add-site": "node bin/add-site.js",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fast-xml-parser": "^5.7.3",
+    "minimist": "^1.2.8",
+    "nodemailer": "^8.0.7",
+    "pixelmatch": "^5.3.0",
+    "playwright": "^1.44.0",
+    "pngjs": "^7.0.0"
+  }
+}

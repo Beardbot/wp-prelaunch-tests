@@ -1,0 +1,59 @@
+require('dotenv').config();
+const minimist = require('minimist');
+const chalk = require('chalk');
+const { runBaseline, runTests } = require('./src/orchestrator');
+
+const args = minimist(process.argv.slice(2));
+const mode = args.mode || args.m;
+const siteKeys = args.site
+  ? [].concat(args.site)
+  : args.s
+    ? [].concat(args.s)
+    : args._;
+
+const banner = `
+╔══════════════════════════════════════════╗
+║        WP Pre-launch Tests              ║
+╚══════════════════════════════════════════╝
+`;
+
+async function main() {
+  console.log(chalk.cyan(banner));
+
+  if (!mode || !['baseline', 'test', 'add-site'].includes(mode)) {
+    console.log(chalk.yellow('Usage:'));
+    console.log('  baseline                      — capture baseline for all sites');
+    console.log('  baseline <key> [key2 ...]     — capture baseline for one or more sites');
+    console.log('  test                          — run pre-launch tests for all sites');
+    console.log('  test <key> [key2 ...]         — run pre-launch tests for one or more sites');
+    console.log('  add-site <url> [url2 ...]     — import one or more sites into sites.json');
+    console.log('  add-site <url> --dry-run      — preview generated site config without writing');
+    console.log('');
+    console.log(chalk.dim("  Didn't run npm link? Use: npm run baseline  /  npm run test -- <key>  /  npm run add-site -- <url>"));
+    process.exit(0);
+  }
+
+  if (mode === 'baseline') {
+    console.log(chalk.blue('Mode: capturing baseline screenshots\n'));
+    await runBaseline(siteKeys);
+  } else if (mode === 'test') {
+    console.log(chalk.blue('Mode: running pre-launch tests\n'));
+    await runTests(siteKeys);
+  } else if (mode === 'add-site') {
+    if (!siteKeys.length) {
+      console.log(chalk.yellow('Usage:'));
+      console.log('  add-site <url> [url2 ...] [--dry-run]');
+      process.exit(0);
+    }
+    const { importSite } = require('./src/site-importer');
+    console.log(chalk.blue('Mode: importing site configuration\n'));
+    for (const url of siteKeys) {
+      await importSite(url, { dryRun: !!args['dry-run'] });
+    }
+  }
+}
+
+main().catch(err => {
+  console.error(chalk.red('Fatal error:'), err);
+  process.exit(1);
+});
