@@ -7,13 +7,15 @@ Pre-launch functional testing for WordPress/Elementor sites. Tests run against s
 Run `npm link` once to register the global CLI commands.
 
 ```bash
-baseline                              # capture baseline screenshots for all sites
-baseline <key> [key2 ...]             # capture baseline for one or more sites
-prelaunch-test                        # run tests for all sites
-prelaunch-test <key> [key2 ...]       # run tests for one or more sites
-add-site <url> [url2 ...]             # import one or more sites into sites.json
-add-site <url> --dry-run              # preview generated config without writing
-npm run server                        # start the optional webhook server
+baseline                                  # capture baseline screenshots for all sites
+baseline <key> [key2 ...]                 # capture baseline for one or more sites
+prelaunch-test                            # run tests for all sites
+prelaunch-test <key> [key2 ...]           # run tests for one or more sites
+add-site <url> [url2 ...]                 # import one or more sites into sites.json
+add-site <url> --dry-run                  # preview generated config without writing
+generate-journey <key>                    # generate journeyOptions config from live DOM
+generate-journey <key> --dry-run          # preview without writing
+npm run server                            # start the optional webhook server
 ```
 
 Without `npm link`:
@@ -61,6 +63,7 @@ Phase 1 is complete. The original architecture plan lives at:
 - Slack failure notifications in `src/notifier.js`
 - New templates: `journeys/templates/product-filter.js`, `journeys/templates/post-filter.js`
 - `productionUrl` site config field for post-launch smoke-only checks
+- ~~`generate-journey` command~~ — complete (see `src/journey-generator.js`)
 
 ### Phase 3 — Coverage and mobile (no fixed timeline)
 - Mobile viewport runs (`{ width: 390, height: 844 }`)

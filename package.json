@@ -6,7 +6,8 @@
   "bin": {
     "prelaunch-test": "./bin/test.js",
     "prelaunch-baseline": "./bin/baseline.js",
-    "prelaunch-add-site": "./bin/add-site.js"
+    "prelaunch-add-site": "./bin/add-site.js",
+    "generate-journey": "./bin/generate-journey.js"
   },
   "scripts": {
     "postinstall": "npx playwright install chromium",
@@ -16,6 +17,7 @@
     "server": "node server.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "better-sqlite3": "^12.9.0",
     "chalk": "^4.1.2",
     "dotenv": "^16.4.5",

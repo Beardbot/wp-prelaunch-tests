@@ -20,14 +20,16 @@ const banner = `
 async function main() {
   console.log(chalk.cyan(banner));
 
-  if (!mode || !['baseline', 'test', 'add-site'].includes(mode)) {
+  if (!mode || !['baseline', 'test', 'add-site', 'generate-journey'].includes(mode)) {
     console.log(chalk.yellow('Usage:'));
-    console.log('  baseline                      — capture baseline for all sites');
-    console.log('  baseline <key> [key2 ...]     — capture baseline for one or more sites');
-    console.log('  test                          — run pre-launch tests for all sites');
-    console.log('  test <key> [key2 ...]         — run pre-launch tests for one or more sites');
-    console.log('  add-site <url> [url2 ...]     — import one or more sites into sites.json');
-    console.log('  add-site <url> --dry-run      — preview generated site config without writing');
+    console.log('  baseline                          — capture baseline for all sites');
+    console.log('  baseline <key> [key2 ...]         — capture baseline for one or more sites');
+    console.log('  test                              — run pre-launch tests for all sites');
+    console.log('  test <key> [key2 ...]             — run pre-launch tests for one or more sites');
+    console.log('  add-site <url> [url2 ...]         — import one or more sites into sites.json');
+    console.log('  add-site <url> --dry-run          — preview generated site config without writing');
+    console.log('  generate-journey <key>            — generate journeyOptions config from live DOM');
+    console.log('  generate-journey <key> --dry-run  — preview without writing');
     console.log('');
     console.log(chalk.dim("  Didn't run npm link? Use: npm run baseline  /  npm run test -- <key>  /  npm run add-site -- <url>"));
     process.exit(0);
@@ -49,6 +51,17 @@ async function main() {
     console.log(chalk.blue('Mode: importing site configuration\n'));
     for (const url of siteKeys) {
       await importSite(url, { dryRun: !!args['dry-run'] });
+    }
+  } else if (mode === 'generate-journey') {
+    if (!siteKeys.length) {
+      console.log(chalk.yellow('Usage:'));
+      console.log('  generate-journey <key> [--dry-run]');
+      process.exit(0);
+    }
+    const { generateJourney } = require('./src/journey-generator');
+    console.log(chalk.blue('Mode: generating journey config from live DOM\n'));
+    for (const key of siteKeys) {
+      await generateJourney(key, { dryRun: !!args['dry-run'] });
     }
   }
 }

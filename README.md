@@ -11,6 +11,7 @@ Pre-launch functional testing for WordPress/Elementor sites. Runs against stagin
 - **Email notifications** via SMTP
 - **Webhook server** for triggering tests from a WordPress plugin
 - **Site importer** — crawls a sitemap and generates a `sites.json` entry automatically
+- **Journey generator** — inspects a live staging site and generates `journeyOptions` config from its DOM
 
 ## Requirements
 
@@ -38,13 +39,15 @@ Fill in `.env` with your SMTP credentials and webhook secret. Edit `config/sites
 ### With `npm link`
 
 ```bash
-baseline                              # capture baseline screenshots for all sites
-baseline <key> [key2 ...]             # capture baseline for one or more sites
-prelaunch-test                        # run tests for all sites
-prelaunch-test <key> [key2 ...]       # run tests for one or more sites
-add-site <url> [url2 ...]             # import one or more sites into sites.json
-add-site <url> --dry-run              # preview generated config without writing
-npm run server                        # start the optional webhook server
+baseline                                  # capture baseline screenshots for all sites
+baseline <key> [key2 ...]                 # capture baseline for one or more sites
+prelaunch-test                            # run tests for all sites
+prelaunch-test <key> [key2 ...]           # run tests for one or more sites
+add-site <url> [url2 ...]                 # import one or more sites into sites.json
+add-site <url> --dry-run                  # preview generated config without writing
+generate-journey <key>                    # generate journeyOptions config from live DOM
+generate-journey <key> --dry-run          # preview without writing
+npm run server                            # start the optional webhook server
 ```
 
 ### Without `npm link`
@@ -73,7 +76,20 @@ A clean Stage 3 result is the go/no-go signal for launch.
 add-site https://staging.example.com
 ```
 
-This crawls the sitemap, detects WooCommerce, extracts pages, and writes a config entry to `sites.json`. Review the generated entry and add any journeys and `journeyOptions` manually.
+This crawls the sitemap, detects WooCommerce, extracts pages, and writes a config entry to `sites.json`.
+
+## Generating Journey Config
+
+After `add-site`, run the journey generator to auto-populate `journeyOptions`:
+
+```bash
+generate-journey example-shop            # inspect live DOM and generate config
+generate-journey example-shop --dry-run  # preview without writing
+```
+
+The generator opens the site in a headless browser, finds contact forms, search inputs, and login pages, and writes the appropriate `journeyOptions` directly into `sites.json`. No tokens are used for standard templates — the config is derived deterministically from the DOM.
+
+If `data-wpt` elements are found that don't match any built-in template (e.g. an LMS, booking widget), the generator will note them. Set `ANTHROPIC_API_KEY` in `.env` to have it auto-generate a `journeys/custom/<key>.js` file for those elements using the Claude API.
 
 ## Configuration — `config/sites.json`
 
