@@ -10,7 +10,8 @@ const configPath = process.env.SITES_CONFIG
 
 // data-wpt values that belong to known template patterns — not custom journey candidates
 const TEMPLATE_WPT_VALUES = new Set([
-  'contact-form-submit', 'search-input', 'cookie-dismiss', 'member-dashboard'
+  'contact-form-submit', 'search-input', 'cookie-dismiss', 'member-dashboard',
+  'product-filter', 'post-filter'
 ]);
 
 // ─── Config helpers ──────────────────────────────────────────────────────────

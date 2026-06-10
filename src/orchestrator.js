@@ -17,7 +17,7 @@ const { checkConsoleErrors } = require('./console-errors');
 const { runJourney } = require('./journey-runner');
 const { saveRun } = require('./db');
 const { generateReport } = require('./reporter');
-const { sendNotification } = require('./notifier');
+const { sendNotification, sendSlackNotification } = require('./notifier');
 
 const BLOCKED_DOMAINS = [
   'google-analytics.com',
@@ -180,19 +180,103 @@ async function runTests(siteKeys) {
     saveRun(siteResults);
   }
 
+  return finishRun(allResults);
+}
+
+async function finishRun(allResults) {
   const reportPath = await generateReport(allResults);
   console.log(chalk.green(`\n✓ Report generated: ${reportPath}`));
 
   const failures = allResults.filter(r => !r.passed);
-  if (failures.length > 0 && config.settings.notifications.email.enabled) {
-    await sendNotification(allResults, reportPath);
+  if (failures.length > 0) {
+    // Each channel gates itself on its enabled flag; a notification failure
+    // must not turn a completed test run into a crashed one
+    try {
+      await sendNotification(allResults, reportPath);
+    } catch (err) {
+      console.warn(chalk.yellow(`  Email notification failed: ${err.message}`));
+    }
+    try {
+      await sendSlackNotification(allResults, reportPath);
+    } catch (err) {
+      console.warn(chalk.yellow(`  Slack notification failed: ${err.message}`));
+    }
   }
 
-  const totalFailed = allResults.filter(r => !r.passed).length;
-  const totalPassed = allResults.filter(r => r.passed).length;
-  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${totalFailed > 0 ? chalk.red(totalFailed + ' failed') : ''}`));
+  const totalPassed = allResults.length - failures.length;
+  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${failures.length > 0 ? chalk.red(failures.length + ' failed') : ''}`));
 
   return allResults;
 }
 
-module.exports = { runBaseline, runTests, dismissCookieBanner };
+async function runProductionSmoke(siteKeys) {
+  const sites = getSites(siteKeys);
+  const allResults = [];
+
+  for (const site of sites) {
+    if (!site.productionUrl) {
+      console.log(chalk.yellow(`\n→ Skipping ${site.name} — no productionUrl in config`));
+      continue;
+    }
+
+    // Production is smoke-only: pages load and console is clean.
+    // Functional journeys, form submissions, and visual diffs never run here.
+    const prodSite = { ...site, url: site.productionUrl, journeys: [] };
+    console.log(chalk.bold(`\n→ Production smoke: ${site.name} (${site.productionUrl})`));
+
+    const siteResults = {
+      site: `${site.name} (production)`,
+      key: site.key,
+      url: site.productionUrl,
+      timestamp: new Date().toISOString(),
+      visual: [],
+      links: [],
+      console: [],
+      journeys: [],
+      passed: true
+    };
+
+    const browser = await chromium.launch();
+    const context = await createContext(browser, prodSite);
+
+    try {
+      console.log(chalk.blue('  Running smoke journey...'));
+      const smokeResult = await runJourney('templates/smoke', prodSite, context);
+      siteResults.journeys.push(smokeResult);
+      console.log(smokeResult.passed
+        ? chalk.green('  ✓ Smoke journey passed')
+        : chalk.red(`  ✗ Smoke journey failed: ${smokeResult.failedStep}`)
+      );
+
+      console.log(chalk.blue('  Checking for console errors...'));
+      const consoleResults = await checkConsoleErrors(context, prodSite, config.settings.timeout);
+      siteResults.console = consoleResults;
+      const errorPages = consoleResults.filter(r => r.errors.length > 0).length;
+      console.log(errorPages > 0
+        ? chalk.red(`  ✗ Console errors found on ${errorPages} page(s)`)
+        : chalk.green(`  ✓ Console: no errors`)
+      );
+
+      siteResults.passed = smokeResult.passed && errorPages === 0;
+
+    } catch (err) {
+      console.error(chalk.red(`  ✗ Production smoke error: ${err.message}`));
+      siteResults.passed = false;
+      siteResults.error = err.message;
+    } finally {
+      await browser.close();
+    }
+
+    allResults.push(siteResults);
+    saveRun(siteResults);
+  }
+
+  if (allResults.length === 0) {
+    console.log(chalk.yellow('\nNo sites with a productionUrl configured — nothing to run.'));
+    return [];
+  }
+
+  return finishRun(allResults);
+}
+
+module.exports = { runBaseline, runTests, runProductionSmoke, dismissCookieBanner };

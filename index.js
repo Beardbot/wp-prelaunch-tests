@@ -1,9 +1,9 @@
 require('dotenv').config();
 const minimist = require('minimist');
 const chalk = require('chalk');
-const { runBaseline, runTests } = require('./src/orchestrator');
+const { runBaseline, runTests, runProductionSmoke } = require('./src/orchestrator');
 
-const args = minimist(process.argv.slice(2));
+const args = minimist(process.argv.slice(2), { boolean: ['production', 'dry-run'] });
 const mode = args.mode || args.m;
 const siteKeys = args.site
   ? [].concat(args.site)
@@ -26,6 +26,7 @@ async function main() {
     console.log('  baseline <key> [key2 ...]         — capture baseline for one or more sites');
     console.log('  test                              — run pre-launch tests for all sites');
     console.log('  test <key> [key2 ...]             — run pre-launch tests for one or more sites');
+    console.log('  test [key ...] --production       — smoke-only checks against productionUrl');
     console.log('  add-site <url> [url2 ...]         — import one or more sites into sites.json');
     console.log('  add-site <url> --dry-run          — preview generated site config without writing');
     console.log('  generate-journey <key>            — generate journeyOptions config from live DOM');
@@ -39,8 +40,13 @@ async function main() {
     console.log(chalk.blue('Mode: capturing baseline screenshots\n'));
     await runBaseline(siteKeys);
   } else if (mode === 'test') {
-    console.log(chalk.blue('Mode: running pre-launch tests\n'));
-    await runTests(siteKeys);
+    if (args.production) {
+      console.log(chalk.blue('Mode: production smoke checks (pages load, console clean — no journeys)\n'));
+      await runProductionSmoke(siteKeys);
+    } else {
+      console.log(chalk.blue('Mode: running pre-launch tests\n'));
+      await runTests(siteKeys);
+    }
   } else if (mode === 'add-site') {
     if (!siteKeys.length) {
       console.log(chalk.yellow('Usage:'));

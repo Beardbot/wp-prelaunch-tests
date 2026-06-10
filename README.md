@@ -4,14 +4,16 @@ Pre-launch functional testing for WordPress/Elementor sites. Runs against stagin
 
 ## Features
 
-- **Journey templates** for common flows: contact form, search, login, WooCommerce add-to-cart/checkout
+- **Journey templates** for common flows: contact form, search, login, WooCommerce add-to-cart/checkout, product/post filtering
 - **Custom journeys** for unique per-site plugins (LMS, booking, Gravity Forms, etc.)
 - **Visual diffing** — capture a baseline then compare on every test run
 - **Link checker** and **console error detection** on every page
-- **Email notifications** via SMTP
-- **Webhook server** for triggering tests from a WordPress plugin
+- **Email notifications** via SMTP, **Slack notifications** on failure
+- **Webhook server** for triggering tests from a WordPress plugin or deploy script
 - **Site importer** — crawls a sitemap and generates a `sites.json` entry automatically
 - **Journey generator** — inspects a live staging site and generates `journeyOptions` config from its DOM
+- **Production smoke checks** — post-launch page-load and console checks via `--production`
+- **Scheduled CI runs** — GitHub Actions workflow with weekly schedule and manual trigger
 
 ## Requirements
 
@@ -43,6 +45,7 @@ baseline                                  # capture baseline screenshots for all
 baseline <key> [key2 ...]                 # capture baseline for one or more sites
 prelaunch-test                            # run tests for all sites
 prelaunch-test <key> [key2 ...]           # run tests for one or more sites
+prelaunch-test [key ...] --production     # smoke-only checks against productionUrl
 add-site <url> [url2 ...]                 # import one or more sites into sites.json
 add-site <url> --dry-run                  # preview generated config without writing
 generate-journey <key>                    # generate journeyOptions config from live DOM
@@ -91,6 +94,17 @@ The generator opens the site in a headless browser, finds contact forms, search 
 
 If `data-wpt` elements are found that don't match any built-in template (e.g. an LMS, booking widget), the generator will note them. Set `ANTHROPIC_API_KEY` in `.env` to have it auto-generate a `journeys/custom/<key>.js` file for those elements using the Claude API.
 
+## Running in CI
+
+The [Scheduled site tests](.github/workflows/scheduled.yml) workflow runs weekly (8am AEST Monday) and can be triggered manually from the GitHub Actions UI with an optional site key — no local setup required. It reads [`config/sites.ci.json`](config/sites.ci.json), a committed config with staging URLs only. Credentials come from repository secrets: `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEST_CUSTOMER_EMAIL`, `TEST_CUSTOMER_PASSWORD`. HTML reports and failure screenshots are uploaded as a workflow artifact (30-day retention).
+
+Deploy scripts can also trigger a run via the webhook server — see [`docs/workflow.md`](docs/workflow.md) for the post-deploy curl snippet.
+
+## Notifications
+
+- **Email** — set `notifications.email.enabled: true` in the config settings and fill the `SMTP_*` env vars. Sends on failure with a per-site breakdown.
+- **Slack** — set `notifications.slack.enabled: true` and `SLACK_WEBHOOK_URL` (a Slack incoming webhook). Failure-only.
+
 ## Configuration — `config/sites.json`
 
 Each entry in `sites` describes one staging site:
@@ -100,6 +114,7 @@ Each entry in `sites` describes one staging site:
   "name": "Example Shop",
   "key": "example-shop",
   "url": "https://staging.shop.example.com",
+  "productionUrl": "https://shop.example.com",
   "pages": ["/", "/shop", "/contact"],
   "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
   "journeys": ["templates/woocommerce", "templates/contact-form"],
@@ -115,6 +130,8 @@ Each entry in `sites` describes one staging site:
 ```
 
 See [`config/sites.example.json`](config/sites.example.json) for full examples including brochure and membership sites.
+
+`productionUrl` is optional. When set, `prelaunch-test <key> --production` runs smoke-only checks (pages load, console clean) against the live site — functional journeys and visual diffs never run on production.
 
 The `SITES_CONFIG` env var can point to a config file outside the project (e.g. a shared OneDrive folder):
 
@@ -144,6 +161,8 @@ Built-in templates in `journeys/templates/`:
 | `login` | Logs in with test customer credentials, asserts dashboard element |
 | `woocommerce` | Adds a product to cart and proceeds through checkout |
 | `smoke` | Page load and basic structure checks |
+| `product-filter` | Applies a shop filter (AJAX or page reload), asserts results |
+| `post-filter` | Applies a blog/archive filter, asserts posts appear |
 
 ## Custom Journeys
 

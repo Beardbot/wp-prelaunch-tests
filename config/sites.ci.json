@@ -1,0 +1,18 @@
+{
+  "_readme": "Committed config for CI runs (SITES_CONFIG=./config/sites.ci.json). Staging URLs only — never put credentials here. Test accounts and SMTP/Slack settings come from GitHub Actions secrets as environment variables. Add launched sites you want monitored weekly; use productionUrl-only entries with the smoke journey for sites whose staging has been decommissioned.",
+  "sites": [],
+  "settings": {
+    "screenshotWidth": 1280,
+    "screenshotHeight": 900,
+    "diffThreshold": 0.02,
+    "timeout": 15000,
+    "notifications": {
+      "email": {
+        "enabled": true
+      },
+      "slack": {
+        "enabled": true
+      }
+    }
+  }
+}

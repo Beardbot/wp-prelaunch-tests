@@ -1,0 +1,51 @@
+name: Scheduled site tests
+
+on:
+  schedule:
+    - cron: '0 22 * * 0' # 8am AEST Monday (22:00 UTC Sunday)
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site key (leave empty to run all sites in sites.ci.json)'
+        required: false
+        default: ''
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install chromium --with-deps
+
+      - name: Run tests
+        run: npm test -- ${{ inputs.site }}
+        env:
+          SITES_CONFIG: ./config/sites.ci.json
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          SMTP_TO: ${{ secrets.SMTP_TO }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TEST_CUSTOMER_EMAIL: ${{ secrets.TEST_CUSTOMER_EMAIL }}
+          TEST_CUSTOMER_PASSWORD: ${{ secrets.TEST_CUSTOMER_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ github.run_id }}
+          path: |
+            data/reports/
+            data/sites/**/failures/
+          retention-days: 30
+          if-no-files-found: ignore

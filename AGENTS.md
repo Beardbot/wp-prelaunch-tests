@@ -11,6 +11,7 @@ baseline                                  # capture baseline screenshots for all
 baseline <key> [key2 ...]                 # capture baseline for one or more sites
 prelaunch-test                            # run tests for all sites
 prelaunch-test <key> [key2 ...]           # run tests for one or more sites
+prelaunch-test [key ...] --production     # smoke-only checks against productionUrl
 add-site <url> [url2 ...]                 # import one or more sites into sites.json
 add-site <url> --dry-run                  # preview generated config without writing
 generate-journey <key>                    # generate journeyOptions config from live DOM
@@ -38,7 +39,10 @@ npm run add-site -- <url>
 ## Project Notes
 
 - Default config: `config/sites.json` (gitignored). Template: `config/sites.example.json`.
+- CI config: `config/sites.ci.json` (committed — staging URLs only, never credentials).
 - `SITES_CONFIG` env var can point to a config file outside the project directory.
+- `productionUrl` site field enables `--production` smoke-only runs. Journeys and visual diffs never run against production.
+- Notifications: email (SMTP) and Slack (`SLACK_WEBHOOK_URL`), each gated by `settings.notifications.*.enabled`. Slack is failure-only.
 - Journey templates live in `journeys/templates/`. Site-specific custom journeys in `journeys/custom/`.
 - Bare journey names (e.g. `"woocommerce"`) resolve to `journeys/templates/` automatically.
 - All journeys use `createStepRunner` from `src/step.js` — failure screenshots are captured automatically.
@@ -56,14 +60,16 @@ npm run add-site -- <url>
 Phase 1 is complete. The original architecture plan lives at:
 `C:\Users\roshe\.claude\plans\i-want-to-plan-partitioned-cherny.md`
 
-### Phase 2 — CI and ongoing monitoring
-- `config/sites.ci.json` — committed config for CI (URLs only, no credentials)
-- GitHub Actions workflow: `workflow_dispatch` + scheduled weekly run
-- Post-deploy webhook trigger from deploy script
-- Slack failure notifications in `src/notifier.js`
-- New templates: `journeys/templates/product-filter.js`, `journeys/templates/post-filter.js`
-- `productionUrl` site config field for post-launch smoke-only checks
+### Phase 2 — CI and ongoing monitoring — COMPLETE
+- ~~`config/sites.ci.json`~~ — committed config for CI (URLs only, no credentials)
+- ~~GitHub Actions workflow~~ — `.github/workflows/scheduled.yml` (`workflow_dispatch` + weekly Monday 8am AEST)
+- ~~Post-deploy webhook trigger~~ — curl snippet documented in `docs/workflow.md`
+- ~~Slack failure notifications~~ — `sendSlackNotification` in `src/notifier.js`
+- ~~New templates~~ — `journeys/templates/product-filter.js`, `journeys/templates/post-filter.js`
+- ~~`productionUrl` site config field~~ — `runProductionSmoke` in `src/orchestrator.js`, `--production` flag
 - ~~`generate-journey` command~~ — complete (see `src/journey-generator.js`)
+
+Remaining manual setup for CI: populate `config/sites.ci.json` with real sites, add GitHub repository secrets (`SMTP_*`, `SLACK_WEBHOOK_URL`, `TEST_CUSTOMER_*`).
 
 ### Phase 3 — Coverage and mobile (no fixed timeline)
 - Mobile viewport runs (`{ width: 390, height: 844 }`)

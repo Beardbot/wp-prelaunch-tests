@@ -65,6 +65,38 @@ A clean result here is the go/no-go signal for launch.
 
 ---
 
+## Post-launch — production smoke (optional)
+
+**When:** After go-live, to confirm the deploy; or weekly via CI for launched sites.
+
+**What to run:** Smoke-only checks against the live site. Requires `productionUrl` in the site's config entry.
+
+```bash
+test my-client --production
+```
+
+This loads each configured page on the production URL and checks for console errors. **Functional journeys, form submissions, and visual diffs never run against production** — staging only.
+
+For launched sites whose staging environment has been decommissioned, keep a config entry with `productionUrl` only and run `--production` checks on a schedule.
+
+---
+
+## Triggering tests from a deploy script
+
+The webhook server (`npm run server`) accepts a post-deploy trigger. Add this to the end of your staging deploy script:
+
+```bash
+curl -s -X POST "https://your-test-host:3001/run" \
+  -H "Content-Type: application/json" \
+  -d "{\"secret\": \"$WP_PRELAUNCH_SECRET\", \"site\": \"my-client\"}"
+```
+
+The server responds immediately with `{"status": "accepted"}` and runs the tests in the background. Omit `site` to run all configured sites. `WP_PRELAUNCH_SECRET` must match the value in the test server's `.env`.
+
+Tests can also be triggered from the GitHub Actions UI (the **Scheduled site tests** workflow has a manual `workflow_dispatch` trigger with an optional site key input) — no local setup needed.
+
+---
+
 ## Adding a test for a new feature
 
 1. Add `data-wpt` attributes to key interactive elements in Elementor (Advanced → Attributes)

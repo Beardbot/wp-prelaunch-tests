@@ -6,9 +6,15 @@
       "url": "https://staging.example.com",
       "pages": ["/", "/about", "/services", "/contact", "/blog"],
       "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
-      "journeys": ["templates/contact-form", "templates/search"],
+      "journeys": ["templates/contact-form", "templates/search", "templates/post-filter"],
       "auth": null,
       "journeyOptions": {
+        "templates/post-filter": {
+          "path": "/blog",
+          "filterSelector": "[data-wpt='post-filter']",
+          "filterValue": "News",
+          "minResults": 1
+        },
         "templates/contact-form": {
           "path": "/contact",
           "fields": [
@@ -29,9 +35,10 @@
       "name": "Example WooCommerce Shop",
       "key": "example-shop",
       "url": "https://staging.shop.example.com",
+      "productionUrl": "https://shop.example.com",
       "pages": ["/", "/shop", "/contact", "/about"],
       "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
-      "journeys": ["templates/woocommerce", "templates/contact-form", "templates/search"],
+      "journeys": ["templates/woocommerce", "templates/contact-form", "templates/search", "templates/product-filter"],
       "auth": null,
       "journeyOptions": {
         "templates/woocommerce": {
@@ -39,6 +46,13 @@
           "cartPath": "/cart",
           "checkoutPath": "/checkout",
           "productOffset": 0
+        },
+        "templates/product-filter": {
+          "shopPath": "/shop",
+          "filterSelector": "[data-wpt='product-filter']",
+          "filterValue": "Blue",
+          "resultSelector": ".products .product",
+          "minResults": 1
         },
         "templates/contact-form": {
           "path": "/contact",
@@ -79,6 +93,9 @@
     "timeout": 15000,
     "notifications": {
       "email": {
+        "enabled": false
+      },
+      "slack": {
         "enabled": false
       }
     }
