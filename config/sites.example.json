@@ -77,7 +77,7 @@
       "url": "https://staging.members.example.com",
       "pages": ["/", "/about", "/membership"],
       "journeys": ["templates/login", "custom/members-portal"],
-      "auth": null,
+      "auth": { "type": "wp-login" },
       "journeyOptions": {
         "templates/login": {
           "loginPath": "/my-account",

@@ -113,6 +113,43 @@ add-site https://staging.example.com
 
 This crawls the sitemap, detects WooCommerce, extracts pages, and writes a config entry to `sites.json`. Review the generated entry and add any additional journeys and `journeyOptions` manually.
 
+## Maintenance-mode staging (wp-login auth)
+
+Most staging sites are hidden behind an Elementor maintenance page — nothing is
+visible without a logged-in WordPress session. Enable a login bootstrap so every
+check (screenshots, links, console, journeys) runs as a logged-in visitor:
+
+```json
+{
+  "key": "my-client",
+  "url": "https://staging.my-client.com",
+  "auth": { "type": "wp-login" }
+}
+```
+
+- Optional `"loginPath"` overrides the default `/wp-login.php`.
+- Credentials live in `.env`, never `sites.json`: `WP_LOGIN_USER` / `WP_LOGIN_PASSWORD`,
+  with per-site overrides `WP_LOGIN_USER_<KEY>` / `WP_LOGIN_PASSWORD_<KEY>` (site key
+  uppercased, hyphens/dots → underscores). This is a **WordPress user** whose role
+  Elementor's maintenance mode lets through — not the WooCommerce test customer.
+- The login happens once per site at the start of the run; cookies persist for the
+  whole run via the single browser context.
+- The WordPress admin bar is hidden automatically before every visual-diff
+  screenshot, so logged-in runs and baselines are not polluted.
+- If the login flag is absent the site runs anonymously, exactly as before. If the
+  flag is set but login fails (bad/missing credentials, wrong `loginPath`), that
+  site's run is marked failed with a clear error instead of silently capturing the
+  maintenance page.
+- `--production` smoke runs are always anonymous — `auth` is ignored there.
+
+**Known limitations (not solved by this flag):**
+
+- `add-site` fetches raw HTML and cannot authenticate, so on a maintenance-mode
+  site it reads the maintenance page (wrong title, no nav, WooCommerce undetected).
+  Enter the config for these sites manually.
+- Logged-in sessions bypass WordPress page caching, so checks exercise the uncached
+  path. Acceptable pre-launch, but worth knowing when comparing timings.
+
 ## Staging environment checklist
 
 Before running tests against a staging environment, confirm:
