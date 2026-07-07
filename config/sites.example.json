@@ -91,6 +91,9 @@
     "screenshotHeight": 900,
     "diffThreshold": 0.02,
     "timeout": 15000,
+    "screenshots": {
+      "exclude_selectors": ["header[data-elementor-type=\"header\"] .elementor-sticky"]
+    },
     "notifications": {
       "email": {
         "enabled": false

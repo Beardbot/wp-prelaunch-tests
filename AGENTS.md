@@ -49,6 +49,7 @@ npm run add-site -- <url>
 - All journeys use `createStepRunner` from `src/step.js` — failure screenshots are captured automatically.
 - Analytics and tracking requests are blocked in every browser context to avoid polluting client dashboards.
 - CSS animations are disabled before visual diff screenshots to prevent false positives.
+- `screenshots.exclude_selectors` (array of CSS selectors) hides elements before every screenshot — used to drop the Elementor sticky header, which a full-page capture otherwise stamps mid-page. Set it globally under `settings` and/or per-site on a site entry (flat or nested under `screenshots`); the lists are merged. Invalid selectors are warned and skipped.
 
 ## Deeper Documentation
 
