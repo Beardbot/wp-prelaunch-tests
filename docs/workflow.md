@@ -149,6 +149,12 @@ check (screenshots, links, console, journeys) runs as a logged-in visitor:
   Enter the config for these sites manually.
 - Logged-in sessions bypass WordPress page caching, so checks exercise the uncached
   path. Acceptable pre-launch, but worth knowing when comparing timings.
+- A logged-out flow such as the `templates/login` journey cannot run on a
+  maintenance-mode site: the maintenance bypass has already authenticated the
+  session, so `/my-account` renders the account dashboard instead of a login form
+  and the journey finds no fields to fill. Use `templates/smoke` (or a journey that
+  assumes a logged-in user) for these sites. `TEST_CUSTOMER_*` credentials are not
+  used when `wp-login` auth is enabled.
 
 ### Running the end-to-end check
 
