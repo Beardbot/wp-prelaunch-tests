@@ -1,4 +1,6 @@
 require('dotenv').config();
+const path = require('path');
+require('./src/env-check').warnOnTruncatedEnv(path.resolve(process.cwd(), '.env'));
 const minimist = require('minimist');
 const chalk = require('chalk');
 const { runBaseline, runTests, runProductionSmoke } = require('./src/orchestrator');
