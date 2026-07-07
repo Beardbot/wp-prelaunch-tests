@@ -64,7 +64,7 @@ Phase 1 is complete. The original architecture plan lives at:
 
 ### Phase 2 — CI and ongoing monitoring — COMPLETE
 - ~~`config/sites.ci.json`~~ — committed config for CI (URLs only, no credentials)
-- ~~GitHub Actions workflow~~ — `.github/workflows/scheduled.yml` (`workflow_dispatch` + weekly Monday 8am AEST)
+- ~~GitHub Actions workflow~~ — `.github/workflows/scheduled.yml` (`workflow_dispatch` only; weekly schedule disabled until `sites.ci.json` has launched sites — an empty site list now fails loudly via `getSites` in `src/orchestrator.js` rather than reporting a vacuous green)
 - ~~Post-deploy webhook trigger~~ — curl snippet documented in `docs/workflow.md`
 - ~~Slack failure notifications~~ — `sendSlackNotification` in `src/notifier.js`
 - ~~New templates~~ — `journeys/templates/product-filter.js`, `journeys/templates/post-filter.js`
