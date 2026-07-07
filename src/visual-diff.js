@@ -38,9 +38,16 @@ async function captureScreenshots(context, site, mode) {
       });
       await page.waitForTimeout(800);
 
-      // Freeze all animations and transitions before capturing
+      // Freeze all animations and transitions, and hide the WordPress admin bar
+      // (present on logged-in maintenance-mode runs) so it never pollutes a
+      // screenshot or visual baseline. The margin-top reset undoes the offset
+      // the admin bar pushes onto <html>.
       await page.addStyleTag({
-        content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
+        content: [
+          '*, *::before, *::after { animation: none !important; transition: none !important; }',
+          '#wpadminbar { display: none !important; }',
+          'html { margin-top: 0 !important; }'
+        ].join('\n')
       });
 
       await page.evaluate(() => window.scrollTo(0, 0));

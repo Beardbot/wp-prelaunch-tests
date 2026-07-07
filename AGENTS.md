@@ -42,6 +42,7 @@ npm run add-site -- <url>
 - CI config: `config/sites.ci.json` (committed — staging URLs only, never credentials).
 - `SITES_CONFIG` env var can point to a config file outside the project directory.
 - `productionUrl` site field enables `--production` smoke-only runs. Journeys and visual diffs never run against production.
+- `"auth": { "type": "wp-login" }` on a site logs in via `wp-login.php` once per run so maintenance-mode staging sites are testable; credentials come from `WP_LOGIN_USER`/`WP_LOGIN_PASSWORD` env vars (per-site override `_<KEY>`), never `sites.json`. See `docs/workflow.md` → "Maintenance-mode staging".
 - Notifications: email (SMTP) and Slack (`SLACK_WEBHOOK_URL`), each gated by `settings.notifications.*.enabled`. Slack is failure-only.
 - Journey templates live in `journeys/templates/`. Site-specific custom journeys in `journeys/custom/`.
 - Bare journey names (e.g. `"woocommerce"`) resolve to `journeys/templates/` automatically.

@@ -18,6 +18,7 @@ const { runJourney } = require('./journey-runner');
 const { saveRun } = require('./db');
 const { generateReport } = require('./reporter');
 const { sendNotification, sendSlackNotification } = require('./notifier');
+const { authenticateWpLogin, isWpLoginEnabled } = require('./wp-login');
 
 const BLOCKED_DOMAINS = [
   'google-analytics.com',
@@ -46,6 +47,14 @@ async function createContext(browser, site) {
       route.continue();
     }
   });
+
+  // Maintenance-mode staging sites hide everything behind a logged-in session.
+  // Authenticate once here; the cookies persist for every check in this run.
+  if (isWpLoginEnabled(site)) {
+    console.log(chalk.blue('  Authenticating via wp-login.php...'));
+    await authenticateWpLogin(context, site);
+    console.log(chalk.green('  ✓ Logged in — session active for this run'));
+  }
 
   return context;
 }
@@ -80,9 +89,9 @@ async function runBaseline(siteKeys) {
   for (const site of sites) {
     console.log(chalk.bold(`\n→ Capturing baseline for: ${site.name}`));
     const browser = await chromium.launch();
-    const context = await createContext(browser, site);
 
     try {
+      const context = await createContext(browser, site);
       const screenshots = await captureScreenshots(context, site, 'baseline');
       console.log(chalk.green(`  ✓ Captured ${screenshots.length} baseline screenshots`));
     } catch (err) {
@@ -114,9 +123,10 @@ async function runTests(siteKeys) {
     };
 
     const browser = await chromium.launch();
-    const context = await createContext(browser, site);
 
     try {
+      const context = await createContext(browser, site);
+
       // Visual diff
       console.log(chalk.blue('  Running visual diff...'));
       const newShots = await captureScreenshots(context, site, 'test');
@@ -221,7 +231,9 @@ async function runProductionSmoke(siteKeys) {
 
     // Production is smoke-only: pages load and console is clean.
     // Functional journeys, form submissions, and visual diffs never run here.
-    const prodSite = { ...site, url: site.productionUrl, journeys: [] };
+    // auth is cleared too — production is live, not maintenance-mode, and we
+    // never log into a production admin during a smoke run.
+    const prodSite = { ...site, url: site.productionUrl, journeys: [], auth: null };
     console.log(chalk.bold(`\n→ Production smoke: ${site.name} (${site.productionUrl})`));
 
     const siteResults = {
@@ -237,9 +249,10 @@ async function runProductionSmoke(siteKeys) {
     };
 
     const browser = await chromium.launch();
-    const context = await createContext(browser, prodSite);
 
     try {
+      const context = await createContext(browser, prodSite);
+
       console.log(chalk.blue('  Running smoke journey...'));
       const smokeResult = await runJourney('templates/smoke', prodSite, context);
       siteResults.journeys.push(smokeResult);
