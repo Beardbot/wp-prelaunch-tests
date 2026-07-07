@@ -150,6 +150,47 @@ check (screenshots, links, console, journeys) runs as a logged-in visitor:
 - Logged-in sessions bypass WordPress page caching, so checks exercise the uncached
   path. Acceptable pre-launch, but worth knowing when comparing timings.
 
+### Running the end-to-end check
+
+A full run against a real maintenance-mode staging site is the acceptance test for
+this feature. There is no site-URL env var — the URL lives in `sites.json` with the
+rest of the site's config; `.env` only holds the credentials.
+
+1. Add a site entry to `config/sites.json` with the `auth` flag and a couple of
+   pages behind the maintenance page:
+
+   ```json
+   {
+     "name": "My Client (staging)",
+     "key": "my-client",
+     "url": "https://staging.my-client.com",
+     "pages": ["/", "/about"],
+     "journeys": ["templates/login"],
+     "auth": { "type": "wp-login" }
+   }
+   ```
+
+2. Put the WordPress login (a user whose role Elementor's maintenance mode lets
+   through) in `.env` — global vars, or per-site to match the key above:
+
+   ```bash
+   WP_LOGIN_USER_MY_CLIENT=staging-editor
+   WP_LOGIN_PASSWORD_MY_CLIENT=...
+   ```
+
+3. Capture a baseline, then run the full suite:
+
+   ```bash
+   baseline my-client
+   prelaunch-test my-client
+   ```
+
+**Expected:** the run authenticates once (`✓ Logged in — session active for this
+run`), smoke + links + console + the login journey all pass, and the screenshots
+under `data/sites/my-client/screenshots/` show the real pages with no admin bar. As
+a control, temporarily remove the `auth` block and re-run — the same pages should
+now capture only the maintenance page.
+
 ## Staging environment checklist
 
 Before running tests against a staging environment, confirm:
