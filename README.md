@@ -13,7 +13,7 @@ Pre-launch functional testing for WordPress/Elementor sites. Runs against stagin
 - **Site importer** — crawls a sitemap and generates a `sites.json` entry automatically
 - **Journey generator** — inspects a live staging site and generates `journeyOptions` config from its DOM
 - **Production smoke checks** — post-launch page-load and console checks via `--production`
-- **Scheduled CI runs** — GitHub Actions workflow with weekly schedule and manual trigger
+- **CI runs** — manually-triggered GitHub Actions workflow (weekly schedule disabled until there are launched sites worth monitoring)
 
 ## Requirements
 
