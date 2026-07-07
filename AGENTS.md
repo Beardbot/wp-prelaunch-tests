@@ -47,6 +47,7 @@ npm run add-site -- <url>
 - Journey templates live in `journeys/templates/`. Site-specific custom journeys in `journeys/custom/`.
 - Bare journey names (e.g. `"woocommerce"`) resolve to `journeys/templates/` automatically.
 - All journeys use `createStepRunner` from `src/step.js` — failure screenshots are captured automatically.
+- A failed journey is retried once on a fresh page (`runJourney` in `src/journey-runner.js`). A pass on the retry is a real pass but flagged `flaky` — labelled "passed on retry (flaky)" in console, HTML report, and email/Slack, and stored in the `runs.flaky` column + summary JSON so flake frequency is countable. A deterministic failure still fails after exactly one retry. A flaky pass also triggers a notification, so it is never indistinguishable from a clean pass.
 - Analytics and tracking requests are blocked in every browser context to avoid polluting client dashboards.
 - CSS animations are disabled before visual diff screenshots to prevent false positives.
 - `screenshots.exclude_selectors` (array of CSS selectors) hides elements before every screenshot — used to drop the Elementor sticky header, which a full-page capture otherwise stamps mid-page. Set it globally under `settings` and/or per-site on a site entry (flat or nested under `screenshots`); the lists are merged. Invalid selectors are warned and skipped.

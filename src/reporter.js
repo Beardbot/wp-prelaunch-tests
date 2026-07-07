@@ -9,12 +9,14 @@ async function generateReport(allResults) {
 
   const totalPassed = allResults.filter(r => r.passed).length;
   const totalFailed = allResults.filter(r => !r.passed).length;
+  const totalFlaky = allResults.reduce((n, r) => n + r.journeys.filter(j => j.flaky).length, 0);
 
   const siteCards = allResults.map(site => {
     const visualFails = site.visual.filter(v => v.status === 'fail').length;
     const linkFails = site.links.filter(l => (l.status === 0 || l.status >= 400) && l.type === 'page').length;
     const consoleFails = site.console.filter(c => c.errors.length > 0).length;
     const journeyFails = site.journeys.filter(j => !j.passed).length;
+    const siteFlaky = site.journeys.filter(j => j.flaky).length;
 
     const statusColor = site.passed ? '#1D9E75' : '#E24B4A';
     const statusLabel = site.passed ? 'PASSED' : 'FAILED';
@@ -52,8 +54,14 @@ async function generateReport(allResults) {
           ${screenshotHtml}
         </div>`;
       }).join('');
+      const journeyColor = j.flaky ? '#BA7517' : j.passed ? '#1D9E75' : '#E24B4A';
+      const journeyLabel = j.flaky ? 'Passed on retry (flaky)' : j.passed ? 'Passed' : 'Failed';
+      const flakyNote = j.flaky && j.firstAttemptFailure
+        ? `<div style="font-size:12px;color:#BA7517;margin-top:2px">First attempt failed: <em>${j.firstAttemptFailure}</em> — passed on the automatic retry</div>`
+        : '';
       return `<div style="margin-bottom:12px">
-        <strong>${j.name}</strong> — <span style="color:${j.passed ? '#1D9E75' : '#E24B4A'}">${j.passed ? 'Passed' : 'Failed'}</span>
+        <strong>${j.name}</strong> — <span style="color:${journeyColor}">${journeyLabel}</span>
+        ${flakyNote}
         <div style="margin-top:6px">${steps}</div>
       </div>`;
     }).join('') || '<div style="color:#888">No journeys configured</div>';
@@ -65,7 +73,10 @@ async function generateReport(allResults) {
             <div style="font-size:18px;font-weight:600">${site.site}</div>
             <div style="font-size:13px;color:#666;margin-top:2px"><a href="${site.url}" target="_blank" style="color:inherit">${site.url}</a></div>
           </div>
-          <div style="color:${statusColor};font-weight:700;font-size:16px">${statusLabel}</div>
+          <div style="text-align:right">
+            <div style="color:${statusColor};font-weight:700;font-size:16px">${statusLabel}</div>
+            ${siteFlaky > 0 ? `<div style="color:#BA7517;font-size:12px;font-weight:600;margin-top:2px">${siteFlaky} flaky (passed on retry)</div>` : ''}
+          </div>
         </div>
         <div style="padding:20px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -128,6 +139,7 @@ async function generateReport(allResults) {
   <div class="stat"><div class="num">${allResults.length}</div><div class="lbl">Sites tested</div></div>
   <div class="stat"><div class="num" style="color:#1D9E75">${totalPassed}</div><div class="lbl">Passed</div></div>
   <div class="stat"><div class="num" style="color:#E24B4A">${totalFailed}</div><div class="lbl">Failed</div></div>
+  <div class="stat"><div class="num" style="color:#BA7517">${totalFlaky}</div><div class="lbl">Flaky (passed on retry)</div></div>
 </div>
 <div class="sites">${siteCards}</div>
 </body>
