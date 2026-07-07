@@ -9,7 +9,7 @@ Tests are run at three defined checkpoints during a new site build. Running test
 **What to run:** The relevant journey(s) for that specific feature.
 
 ```bash
-test my-client
+prelaunch-test my-client
 ```
 
 **What to check:** The new journey passes. Fix any selector or flow issues before moving on.
@@ -28,7 +28,7 @@ test my-client
 **What to run:** All journeys for the site.
 
 ```bash
-test my-client
+prelaunch-test my-client
 ```
 
 **What to check:**
@@ -52,7 +52,7 @@ baseline my-client
 # Do a final content/layout review
 
 # Run tests — visual diff will compare against the baseline you just captured
-test my-client
+prelaunch-test my-client
 ```
 
 **What to check:**
@@ -72,7 +72,7 @@ A clean result here is the go/no-go signal for launch.
 **What to run:** Smoke-only checks against the live site. Requires `productionUrl` in the site's config entry.
 
 ```bash
-test my-client --production
+prelaunch-test my-client --production
 ```
 
 This loads each configured page on the production URL and checks for console errors. **Functional journeys, form submissions, and visual diffs never run against production** — staging only.
@@ -103,7 +103,7 @@ Tests can also be triggered from the GitHub Actions UI (the **Scheduled site tes
 2. Open `config/sites.json`, find the site entry
 3. Standard scenarios (contact form, search, login, WooCommerce): add the template name to `journeys` and fill in `journeyOptions`
 4. Unique plugins (LMS, booking, Gravity Forms with complex logic): create `journeys/custom/client-name.js`
-5. Run `test <key>` and fix until green
+5. Run `prelaunch-test <key>` and fix until green
 
 ## Adding a new site
 
