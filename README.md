@@ -13,7 +13,7 @@ Pre-launch functional testing for WordPress/Elementor sites. Runs against stagin
 - **Site importer** — crawls a sitemap and generates a `sites.json` entry automatically
 - **Journey generator** — inspects a live staging site and generates `journeyOptions` config from its DOM
 - **Production smoke checks** — post-launch page-load and console checks via `--production`
-- **Scheduled CI runs** — GitHub Actions workflow with weekly schedule and manual trigger
+- **CI runs** — manually-triggered GitHub Actions workflow (weekly schedule disabled until there are launched sites worth monitoring)
 
 ## Requirements
 
@@ -96,7 +96,7 @@ If `data-wpt` elements are found that don't match any built-in template (e.g. an
 
 ## Running in CI
 
-The [Scheduled site tests](.github/workflows/scheduled.yml) workflow runs weekly (8am AEST Monday) and can be triggered manually from the GitHub Actions UI with an optional site key — no local setup required. It reads [`config/sites.ci.json`](config/sites.ci.json), a committed config with staging URLs only. Credentials come from repository secrets: `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEST_CUSTOMER_EMAIL`, `TEST_CUSTOMER_PASSWORD`. HTML reports and failure screenshots are uploaded as a workflow artifact (30-day retention).
+The [Scheduled site tests](.github/workflows/scheduled.yml) workflow is triggered manually from the GitHub Actions UI with an optional site key — no local setup required. The weekly schedule is intentionally disabled until there are launched sites worth monitoring: with an empty `sites.ci.json`, a scheduled run would test nothing yet report green. A run against an empty site list now fails loudly, so re-enabling the `schedule:` trigger later can never silently go green. It reads [`config/sites.ci.json`](config/sites.ci.json), a committed config with staging URLs only. Credentials come from repository secrets: `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEST_CUSTOMER_EMAIL`, `TEST_CUSTOMER_PASSWORD`. HTML reports and failure screenshots are uploaded as a workflow artifact (30-day retention).
 
 Deploy scripts can also trigger a run via the webhook server — see [`docs/workflow.md`](docs/workflow.md) for the post-deploy curl snippet.
 

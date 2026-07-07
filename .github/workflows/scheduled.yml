@@ -1,8 +1,15 @@
 name: Scheduled site tests
 
+# Manual trigger only. The weekly `schedule:` trigger is intentionally disabled:
+# with no launched sites in config/sites.ci.json, a scheduled run tested zero
+# sites yet reported green — the exact false confidence this tool exists to
+# prevent. Re-add the schedule below once sites.ci.json has launched sites worth
+# monitoring:
+#   schedule:
+#     - cron: '0 22 * * 0' # 8am AEST Monday (22:00 UTC Sunday)
+# A run against an empty site list now fails loudly (see getSites in
+# src/orchestrator.js), so re-enabling the schedule can never silently go green.
 on:
-  schedule:
-    - cron: '0 22 * * 0' # 8am AEST Monday (22:00 UTC Sunday)
   workflow_dispatch:
     inputs:
       site:

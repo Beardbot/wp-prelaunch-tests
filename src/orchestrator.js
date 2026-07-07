@@ -80,6 +80,14 @@ function getSites(siteKeys) {
       return site;
     });
   }
+  // Refuse to "succeed" on zero sites. An all-sites run against an empty config
+  // would otherwise generate a clean report and exit 0 — a green run that tested
+  // nothing, which is exactly the false confidence this tool exists to prevent.
+  if (!config.sites || config.sites.length === 0) {
+    console.error(chalk.red(`No sites configured in ${configPath}.`));
+    console.error('A run that tests zero sites must not report success. Add at least one entry to the "sites" array, or pass explicit site keys.');
+    process.exit(1);
+  }
   return config.sites;
 }
 
