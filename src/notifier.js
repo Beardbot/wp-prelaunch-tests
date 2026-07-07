@@ -5,6 +5,25 @@ const nodemailer = require('nodemailer');
 const configPath = process.env.SITES_CONFIG || path.join(__dirname, '..', 'config', 'sites.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
+// A journey that failed once and passed on the automatic retry is a real pass,
+// but flagging it keeps a flaky result from looking identical to a clean one.
+function collectFlaky(allResults) {
+  const flaky = [];
+  for (const r of allResults) {
+    for (const j of (r.journeys || [])) {
+      if (j.flaky) {
+        flaky.push({
+          site: r.site,
+          url: r.url,
+          name: j.name,
+          firstAttemptFailure: j.firstAttemptFailure || null
+        });
+      }
+    }
+  }
+  return flaky;
+}
+
 async function sendNotification(allResults, reportPath) {
   if (!config.settings.notifications.email.enabled) return;
   if (!process.env.SMTP_HOST) {
@@ -12,18 +31,22 @@ async function sendNotification(allResults, reportPath) {
     return;
   }
 
+  const failures = allResults.filter(r => !r.passed);
+  const passed = allResults.filter(r => r.passed);
+  const flaky = collectFlaky(allResults);
+
+  // Nothing worth a mail: a clean, non-flaky all-pass run stays silent as before.
+  if (failures.length === 0 && flaky.length === 0) return;
+
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587'),
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
   });
 
-  const failures = allResults.filter(r => !r.passed);
-  const passed = allResults.filter(r => r.passed);
-
   const subject = failures.length > 0
-    ? `⚠️ WP Pre-launch: ${failures.length} site(s) failed`
-    : `✓ WP Pre-launch: All sites passed`;
+    ? `⚠️ WP Pre-launch: ${failures.length} site(s) failed${flaky.length ? `, ${flaky.length} flaky journey(s)` : ''}`
+    : `⚠️ WP Pre-launch: all sites passed — ${flaky.length} flaky journey(s)`;
 
   const failureList = failures.map(f => `
     <li><strong>${f.site}</strong> (${f.url})
@@ -35,11 +58,20 @@ async function sendNotification(allResults, reportPath) {
       </ul>
     </li>`).join('');
 
+  const flakySection = flaky.length > 0 ? `
+    <h3 style="color:#BA7517">Flaky — passed on retry</h3>
+    <ul>
+      ${flaky.map(f => `<li><strong>${f.site}</strong> — journey <code>${f.name}</code>${f.firstAttemptFailure ? ` (first attempt: ${f.firstAttemptFailure})` : ''}</li>`).join('')}
+    </ul>
+    <p style="font-size:12px;color:#888">These journeys failed once and passed on the automatic retry — a real pass, but the site or staging environment showed instability worth noting.</p>
+  ` : '';
+
   const html = `
     <h2>WP Pre-launch Test Results</h2>
     <p>Run at ${new Date().toLocaleString()}</p>
-    <p><strong>${passed.length}</strong> passed &nbsp; <strong style="color:#E24B4A">${failures.length}</strong> failed</p>
+    <p><strong>${passed.length}</strong> passed &nbsp; <strong style="color:#E24B4A">${failures.length}</strong> failed${flaky.length ? ` &nbsp; <strong style="color:#BA7517">${flaky.length}</strong> flaky` : ''}</p>
     ${failures.length > 0 ? `<h3>Failures</h3><ul>${failureList}</ul>` : '<p style="color:#1D9E75">All sites passed ✓</p>'}
+    ${flakySection}
     <p style="font-size:12px;color:#888">Full report saved to: ${reportPath}</p>
   `;
 
@@ -62,7 +94,10 @@ async function sendSlackNotification(allResults, reportPath) {
   }
 
   const failures = allResults.filter(r => !r.passed);
-  if (failures.length === 0) return; // Slack is failure-only — email covers pass summaries
+  const flaky = collectFlaky(allResults);
+  // Slack stays quiet on a clean pass (email covers pass summaries), but a flaky
+  // pass is noteworthy instability, so post on failures OR flaky.
+  if (failures.length === 0 && flaky.length === 0) return;
 
   const failureLines = failures.map(f => {
     const problems = [
@@ -75,7 +110,19 @@ async function sendSlackNotification(allResults, reportPath) {
     return `• *${f.site}* (${f.url})\n${problems.map(p => `    ◦ ${p}`).join('\n')}`;
   }).join('\n');
 
-  const text = `:warning: *WP Pre-launch: ${failures.length} site(s) failed*\n${failureLines}\n_Full report: ${reportPath}_`;
+  const flakyLines = flaky.map(f =>
+    `• *${f.site}* (${f.url})\n    ◦ journey ${f.name} — passed on retry (flaky)${f.firstAttemptFailure ? ` [first attempt: ${f.firstAttemptFailure}]` : ''}`
+  ).join('\n');
+
+  const header = failures.length > 0
+    ? `:warning: *WP Pre-launch: ${failures.length} site(s) failed${flaky.length ? `, ${flaky.length} flaky journey(s)` : ''}*`
+    : `:warning: *WP Pre-launch: all sites passed — ${flaky.length} flaky journey(s)*`;
+
+  const sections = [header];
+  if (failures.length > 0) sections.push(failureLines);
+  if (flaky.length > 0) sections.push(`_Flaky (passed on retry):_\n${flakyLines}`);
+  sections.push(`_Full report: ${reportPath}_`);
+  const text = sections.join('\n');
 
   const response = await fetch(webhookUrl, {
     method: 'POST',
@@ -87,4 +134,4 @@ async function sendSlackNotification(allResults, reportPath) {
   }
 }
 
-module.exports = { sendNotification, sendSlackNotification };
+module.exports = { sendNotification, sendSlackNotification, collectFlaky };

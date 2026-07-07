@@ -13,20 +13,30 @@ db.exec(`
     site_name TEXT NOT NULL,
     timestamp TEXT NOT NULL,
     passed INTEGER NOT NULL,
+    flaky INTEGER NOT NULL DEFAULT 0,
     summary TEXT NOT NULL
   )
 `);
 
+// Additive migration for databases created before the flaky column existed, so
+// flake frequency is countable (SELECT COUNT(*) FROM runs WHERE flaky = 1)
+// without parsing every summary JSON.
+const runColumns = db.prepare(`PRAGMA table_info(runs)`).all().map(c => c.name);
+if (!runColumns.includes('flaky')) {
+  db.exec(`ALTER TABLE runs ADD COLUMN flaky INTEGER NOT NULL DEFAULT 0`);
+}
+
 function saveRun(results) {
   const stmt = db.prepare(`
-    INSERT INTO runs (site_key, site_name, timestamp, passed, summary)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO runs (site_key, site_name, timestamp, passed, flaky, summary)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     results.key,
     results.site,
     results.timestamp,
     results.passed ? 1 : 0,
+    results.flaky ? 1 : 0,
     JSON.stringify(results)
   );
 }

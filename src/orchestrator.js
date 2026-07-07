@@ -119,7 +119,8 @@ async function runTests(siteKeys) {
       links: [],
       console: [],
       journeys: [],
-      passed: true
+      passed: true,
+      flaky: false
     };
 
     const browser = await chromium.launch();
@@ -164,13 +165,19 @@ async function runTests(siteKeys) {
           console.log(chalk.blue(`  Running journey: ${journeyName}...`));
           const journeyResult = await runJourney(journeyName, site, context);
           siteResults.journeys.push(journeyResult);
-          console.log(journeyResult.passed
-            ? chalk.green(`  ✓ Journey "${journeyName}" passed`)
-            : chalk.red(`  ✗ Journey "${journeyName}" failed: ${journeyResult.failedStep}`)
-          );
+          if (journeyResult.passed && journeyResult.flaky) {
+            console.log(chalk.yellow(`  ⚠ Journey "${journeyName}" passed on retry (flaky)`));
+          } else if (journeyResult.passed) {
+            console.log(chalk.green(`  ✓ Journey "${journeyName}" passed`));
+          } else {
+            console.log(chalk.red(`  ✗ Journey "${journeyName}" failed: ${journeyResult.failedStep}`));
+          }
         }
       }
 
+      // A flaky pass still counts as passed for the site's overall status, but is
+      // tracked separately so the flake is visible and countable, never hidden.
+      siteResults.flaky = siteResults.journeys.some(j => j.flaky);
       siteResults.passed = (
         visualFails === 0 &&
         linkFails === 0 &&
@@ -198,7 +205,12 @@ async function finishRun(allResults) {
   console.log(chalk.green(`\n✓ Report generated: ${reportPath}`));
 
   const failures = allResults.filter(r => !r.passed);
-  if (failures.length > 0) {
+  const flakyCount = allResults.reduce((n, r) => n + r.journeys.filter(j => j.flaky).length, 0);
+
+  // Notify on failures OR on flaky passes — a flaky result that never surfaced in
+  // a notification would be indistinguishable from a clean pass to anyone not
+  // reading the report.
+  if (failures.length > 0 || flakyCount > 0) {
     // Each channel gates itself on its enabled flag; a notification failure
     // must not turn a completed test run into a crashed one
     try {
@@ -214,7 +226,8 @@ async function finishRun(allResults) {
   }
 
   const totalPassed = allResults.length - failures.length;
-  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${failures.length > 0 ? chalk.red(failures.length + ' failed') : ''}`));
+  const flakyNote = flakyCount > 0 ? chalk.yellow(`  ${flakyCount} flaky`) : '';
+  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${failures.length > 0 ? chalk.red(failures.length + ' failed') : ''}${flakyNote}`));
 
   return allResults;
 }
@@ -245,7 +258,8 @@ async function runProductionSmoke(siteKeys) {
       links: [],
       console: [],
       journeys: [],
-      passed: true
+      passed: true,
+      flaky: false
     };
 
     const browser = await chromium.launch();
@@ -256,10 +270,14 @@ async function runProductionSmoke(siteKeys) {
       console.log(chalk.blue('  Running smoke journey...'));
       const smokeResult = await runJourney('templates/smoke', prodSite, context);
       siteResults.journeys.push(smokeResult);
-      console.log(smokeResult.passed
-        ? chalk.green('  ✓ Smoke journey passed')
-        : chalk.red(`  ✗ Smoke journey failed: ${smokeResult.failedStep}`)
-      );
+      if (smokeResult.passed && smokeResult.flaky) {
+        console.log(chalk.yellow('  ⚠ Smoke journey passed on retry (flaky)'));
+      } else if (smokeResult.passed) {
+        console.log(chalk.green('  ✓ Smoke journey passed'));
+      } else {
+        console.log(chalk.red(`  ✗ Smoke journey failed: ${smokeResult.failedStep}`));
+      }
+      siteResults.flaky = siteResults.journeys.some(j => j.flaky);
 
       console.log(chalk.blue('  Checking for console errors...'));
       const consoleResults = await checkConsoleErrors(context, prodSite, config.settings.timeout);
