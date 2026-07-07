@@ -5,8 +5,8 @@
   "main": "index.js",
   "bin": {
     "prelaunch-test": "./bin/test.js",
-    "prelaunch-baseline": "./bin/baseline.js",
-    "prelaunch-add-site": "./bin/add-site.js",
+    "baseline": "./bin/baseline.js",
+    "add-site": "./bin/add-site.js",
     "generate-journey": "./bin/generate-journey.js"
   },
   "scripts": {

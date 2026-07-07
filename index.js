@@ -26,9 +26,9 @@ async function main() {
     console.log(chalk.yellow('Usage:'));
     console.log('  baseline                          — capture baseline for all sites');
     console.log('  baseline <key> [key2 ...]         — capture baseline for one or more sites');
-    console.log('  test                              — run pre-launch tests for all sites');
-    console.log('  test <key> [key2 ...]             — run pre-launch tests for one or more sites');
-    console.log('  test [key ...] --production       — smoke-only checks against productionUrl');
+    console.log('  prelaunch-test                    — run pre-launch tests for all sites');
+    console.log('  prelaunch-test <key> [key2 ...]   — run pre-launch tests for one or more sites');
+    console.log('  prelaunch-test [key ...] --production  — smoke-only checks against productionUrl');
     console.log('  add-site <url> [url2 ...]         — import one or more sites into sites.json');
     console.log('  add-site <url> --dry-run          — preview generated site config without writing');
     console.log('  generate-journey <key>            — generate journeyOptions config from live DOM');
