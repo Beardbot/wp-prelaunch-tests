@@ -92,7 +92,7 @@ generate-journey example-shop --dry-run  # preview without writing
 
 The generator opens the site in a headless browser, finds contact forms, search inputs, and login pages, and writes the appropriate `journeyOptions` directly into `sites.json`. No tokens are used for standard templates — the config is derived deterministically from the DOM.
 
-If `data-wpt` elements are found that don't match any built-in template (e.g. an LMS, booking widget), the generator will note them. Set `ANTHROPIC_API_KEY` in `.env` to have it auto-generate a `journeys/custom/<key>.js` file for those elements using the Claude API.
+If `data-wpt` elements are found that don't match any built-in template (e.g. an LMS, booking widget), the generator notes them and points you at the **`create-journey` skill** (`.claude/skills/create-journey`). Invoke it with a plain-language description of the flow and the site key: it walks the live staging flow, writes `journeys/custom/<key>.js`, wires it into `sites.json`, runs `prelaunch-test <key>`, and leaves the result for you to review and commit. Custom journeys are hand-reviewed by design — see [`docs/custom-journeys.md`](docs/custom-journeys.md).
 
 ## Running in CI
 
