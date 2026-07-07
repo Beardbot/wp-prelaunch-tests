@@ -92,7 +92,7 @@ async function runBaseline(siteKeys) {
 
     try {
       const context = await createContext(browser, site);
-      const screenshots = await captureScreenshots(context, site, 'baseline');
+      const screenshots = await captureScreenshots(context, site, 'baseline', config.settings);
       console.log(chalk.green(`  ✓ Captured ${screenshots.length} baseline screenshots`));
     } catch (err) {
       console.error(chalk.red(`  ✗ Baseline failed: ${err.message}`));
@@ -129,7 +129,7 @@ async function runTests(siteKeys) {
 
       // Visual diff
       console.log(chalk.blue('  Running visual diff...'));
-      const newShots = await captureScreenshots(context, site, 'test');
+      const newShots = await captureScreenshots(context, site, 'test', config.settings);
       const visualResults = await compareScreenshots(site, newShots, config.settings.diffThreshold);
       siteResults.visual = visualResults;
       const visualFails = visualResults.filter(r => r.status === 'fail').length;

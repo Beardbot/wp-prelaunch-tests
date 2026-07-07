@@ -197,6 +197,38 @@ under `data/sites/my-client/screenshots/` show the real pages with no admin bar.
 a control, temporarily remove the `auth` block and re-run — the same pages should
 now capture only the maintenance page.
 
+## Excluding elements from screenshots
+
+Full-page screenshots capture `position: fixed` elements — most commonly an
+Elementor **sticky header** — stamped into the middle of the page, which pollutes
+baselines and produces false visual diffs. Hide such elements with
+`screenshots.exclude_selectors`, an array of CSS selectors that are set to
+`display: none` before every capture (baseline and test).
+
+Configure it globally, per-site, or both — the lists are merged:
+
+```json
+{
+  "sites": [
+    {
+      "key": "my-client",
+      "url": "https://staging.my-client.com",
+      "screenshots": { "exclude_selectors": [".site-specific-widget"] }
+    }
+  ],
+  "settings": {
+    "screenshots": {
+      "exclude_selectors": ["header[data-elementor-type=\"header\"] .elementor-sticky"]
+    }
+  }
+}
+```
+
+The Elementor sticky-header selector above is a sensible global default for
+Elementor builds. Invalid selectors are logged as a warning and skipped rather
+than failing the run. Selectors are applied right after page load, before the
+scroll pass, so the sticky clone never forms.
+
 ## Staging environment checklist
 
 Before running tests against a staging environment, confirm:

@@ -13,9 +13,70 @@ function slugify(url) {
   return url.replace(/^\//, '').replace(/\//g, '-') || 'home';
 }
 
-async function captureScreenshots(context, site, mode) {
+function selectorList(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+// Collect screenshot exclude selectors from every supported location: global
+// (settings) and per-site (site), each usable flat or nested under `screenshots`.
+function getScreenshotExcludeSelectors(site, settings = {}) {
+  return [
+    ...selectorList(settings.exclude_selectors),
+    ...selectorList(settings.screenshots && settings.screenshots.exclude_selectors),
+    ...selectorList(site.exclude_selectors),
+    ...selectorList(site.screenshots && site.screenshots.exclude_selectors)
+  ];
+}
+
+// Hide the given selectors before a screenshot (e.g. an Elementor sticky header
+// that would otherwise be stamped mid-page in a full-page capture). Invalid
+// selectors are skipped with a warning instead of crashing the run.
+async function applyScreenshotExcludeSelectors(page, selectors) {
+  const warnings = [];
+  const safeSelectors = selectorList(selectors)
+    .filter(selector => typeof selector === 'string')
+    .map(selector => selector.trim())
+    .filter(Boolean);
+
+  if (!safeSelectors.length) return warnings;
+
+  const invalidSelectors = await page.evaluate(list => {
+    const invalid = [];
+    for (const selector of list) {
+      try {
+        document.querySelectorAll(selector);
+      } catch {
+        invalid.push(selector);
+      }
+    }
+    return invalid;
+  }, safeSelectors);
+
+  for (const selector of invalidSelectors) {
+    warnings.push(`Invalid exclude selector skipped for screenshots: ${selector}`);
+  }
+
+  const invalidSet = new Set(invalidSelectors);
+  const validSelectors = safeSelectors.filter(selector => !invalidSet.has(selector));
+  if (!validSelectors.length) return warnings;
+
+  try {
+    await page.addStyleTag({
+      content: validSelectors
+        .map(selector => `${selector} { display: none !important; visibility: hidden !important; opacity: 0 !important; }`)
+        .join('\n')
+    });
+  } catch {
+    warnings.push('Could not apply screenshot exclude selector styles.');
+  }
+
+  return warnings;
+}
+
+async function captureScreenshots(context, site, mode, settings = {}) {
   const dir = getScreenshotDir(site.key, mode);
   const captured = [];
+  const excludeSelectors = getScreenshotExcludeSelectors(site, settings);
 
   for (const pagePath of site.pages) {
     const url = site.url + pagePath;
@@ -25,6 +86,13 @@ async function captureScreenshots(context, site, mode) {
     const page = await context.newPage();
     try {
       await page.goto(url, { waitUntil: 'load', timeout: 15000 });
+
+      // Hide configured elements (e.g. the Elementor sticky header) before the
+      // scroll pass, so a position:fixed clone never forms to pollute the capture.
+      const excludeWarnings = await applyScreenshotExcludeSelectors(page, excludeSelectors);
+      for (const warning of excludeWarnings) {
+        console.warn(`    ${warning}`);
+      }
 
       // Scroll to trigger lazy images and Elementor entrance animations
       await page.evaluate(async () => {
@@ -145,4 +213,9 @@ function resizePNG(png, targetWidth, targetHeight) {
   return data;
 }
 
-module.exports = { captureScreenshots, compareScreenshots };
+module.exports = {
+  captureScreenshots,
+  compareScreenshots,
+  getScreenshotExcludeSelectors,
+  applyScreenshotExcludeSelectors
+};
