@@ -227,47 +227,18 @@ function buildJourneyOptions(detected, inspections, site) {
   return { journeyOptions, newJourneys };
 }
 
-// ─── Custom journey via Claude API ───────────────────────────────────────────
+// ─── Custom journey candidates ────────────────────────────────────────────────
 
-async function generateCustomJourney(site, customCandidates) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.log(chalk.yellow('\n  ℹ  Unrecognised data-wpt elements found — a custom journey may be useful.'));
-    console.log(chalk.dim('     Elements: ' + customCandidates.map(e => `[data-wpt="${e.wpt}"]`).join(', ')));
-    console.log(chalk.dim('     Set ANTHROPIC_API_KEY in .env to auto-generate journeys/custom/' + site.key + '.js'));
-    return null;
-  }
-
-  console.log(chalk.blue('\n  Generating custom journey with Claude...'));
-
-  const Anthropic = require('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey });
-
-  const docsPath = path.join(__dirname, '..', 'docs', 'custom-journeys.md');
-  const templateRef = fs.existsSync(docsPath) ? fs.readFileSync(docsPath, 'utf8') : '';
-
-  const prompt = `Generate a Playwright journey file for a WordPress/Elementor site testing tool.
-
-Site: ${site.name} (${site.url})
-Site key: ${site.key}
-
-These data-wpt elements were found on the site and don't match any standard template (contact form, search, login, WooCommerce):
-
-${JSON.stringify(customCandidates, null, 2)}
-
-Using the pattern below, generate journeys/custom/${site.key}.js that navigates to each element's page, waits for the element to be visible, and performs a basic interaction if the element is a button or link.
-
-${templateRef}
-
-Return ONLY the JavaScript file contents. No markdown fences, no explanation.`;
-
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  return msg.content[0].text;
+// data-wpt elements that don't match any template usually signal a site-specific
+// flow (LMS, booking, Gravity Forms, etc.) that deserves a hand-authored, reviewed
+// custom journey. We surface them as a pointer rather than auto-generating
+// unreviewed Playwright code: use the interactive `create-journey` skill, which
+// walks the live flow with a developer and leaves the journey for review.
+function noteCustomCandidates(site, customCandidates) {
+  console.log(chalk.yellow('\n  ℹ  Unrecognised data-wpt elements found — a custom journey may be useful.'));
+  console.log(chalk.dim('     Elements: ' + customCandidates.map(e => `[data-wpt="${e.wpt}"]`).join(', ')));
+  console.log(chalk.dim(`     To scaffold one, run the "create-journey" skill with a description of the flow`));
+  console.log(chalk.dim(`     and the site key "${site.key}" (see .claude/skills/create-journey and docs/custom-journeys.md).`));
 }
 
 // ─── Output ───────────────────────────────────────────────────────────────────
@@ -304,7 +275,7 @@ function printPreview(journeyOptions, newJourneys) {
   }
 }
 
-async function applyResults(site, { journeyOptions, newJourneys, customJourneyCode }, { dryRun }) {
+async function applyResults(site, { journeyOptions, newJourneys }, { dryRun }) {
   printPreview(journeyOptions, newJourneys);
 
   if (dryRun) {
@@ -312,7 +283,7 @@ async function applyResults(site, { journeyOptions, newJourneys, customJourneyCo
     return;
   }
 
-  if (newJourneys.length === 0 && Object.keys(journeyOptions).length === 0 && !customJourneyCode) {
+  if (newJourneys.length === 0 && Object.keys(journeyOptions).length === 0) {
     return;
   }
 
@@ -336,23 +307,6 @@ async function applyResults(site, { journeyOptions, newJourneys, customJourneyCo
       fs.writeFileSync(configPath, JSON.stringify(freshConfig, null, 2) + '\n');
       console.log(chalk.green('\n  ✓ sites.json updated'));
     }
-  }
-
-  if (customJourneyCode) {
-    const customDir  = path.join(__dirname, '..', 'journeys', 'custom');
-    const customFile = path.join(customDir, `${site.key}.js`);
-
-    if (fs.existsSync(customFile)) {
-      const overwrite = await confirm(
-        `\n  journeys/custom/${site.key}.js already exists. Overwrite? [y/N] `,
-        { defaultYes: false }
-      );
-      if (!overwrite) { console.log(chalk.yellow('  Custom journey skipped.')); return; }
-    }
-
-    fs.mkdirSync(customDir, { recursive: true });
-    fs.writeFileSync(customFile, customJourneyCode);
-    console.log(chalk.green(`  ✓ journeys/custom/${site.key}.js written`));
   }
 }
 
@@ -378,12 +332,11 @@ async function generateJourney(siteKey, { dryRun = false } = {}) {
   const detected       = detectTemplates(inspections, site);
   const { journeyOptions, newJourneys } = buildJourneyOptions(detected, inspections, site);
 
-  let customJourneyCode = null;
   if (detected._customCandidates) {
-    customJourneyCode = await generateCustomJourney(site, detected._customCandidates);
+    noteCustomCandidates(site, detected._customCandidates);
   }
 
-  await applyResults(site, { journeyOptions, newJourneys, customJourneyCode }, { dryRun });
+  await applyResults(site, { journeyOptions, newJourneys }, { dryRun });
 }
 
 module.exports = { generateJourney };

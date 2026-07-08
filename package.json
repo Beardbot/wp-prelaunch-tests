@@ -17,7 +17,6 @@
     "server": "node server.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.98.0",
     "better-sqlite3": "^12.9.0",
     "chalk": "^4.1.2",
     "dotenv": "^16.4.5",
