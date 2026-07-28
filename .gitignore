@@ -3,3 +3,5 @@ node_modules/
 config/sites.json
 data/
 .claude/settings.local.json
+wp-plugin/vendor/
+wp-plugin/.phpunit.result.cache

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnDeprecation="true">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <!-- The integration suite (a provisioned WordPress reached over real
+             HTTP, in the style of the staging-setup repo's harness) arrives in
+             the next slice; it will self-skip unless BEARDBOT_SENSORS_TEST_WP_PATH points at
+             a provisioned install so a bare `phpunit` run stays fast and
+             WordPress-free. -->
+    </testsuites>
+    <source>
+        <include>
+            <directory>beardbot-sensors/includes</directory>
+        </include>
+    </source>
+</phpunit>
