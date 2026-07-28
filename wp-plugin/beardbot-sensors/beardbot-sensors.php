@@ -88,3 +88,4 @@ add_filter('rest_authentication_errors', [Rest\Controller::class, 'throttle_auth
 add_filter('wp_is_application_passwords_available', [Rest\Controller::class, 'suppress_application_passwords'], 100);
 add_action('application_password_failed_authentication', [Rest\Controller::class, 'note_failed_authentication']);
 add_filter('rest_post_dispatch', [Rest\Controller::class, 'add_retry_after'], 10, 3);
+add_filter('rest_post_dispatch', [Rest\Controller::class, 'no_store'], 10, 3);
