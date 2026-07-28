@@ -1,0 +1,4 @@
+# Shell scripts must check out with LF everywhere: Git Bash on Windows fails
+# on CRLF scripts ("\r: command not found"), and tests/Integration/provision.sh
+# is explicitly supported under Git Bash.
+*.sh text eol=lf

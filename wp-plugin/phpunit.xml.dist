@@ -9,11 +9,13 @@
         <testsuite name="unit">
             <directory>tests/Unit</directory>
         </testsuite>
-        <!-- The integration suite (a provisioned WordPress reached over real
-             HTTP, in the style of the staging-setup repo's harness) arrives in
-             the next slice; it will self-skip unless BEARDBOT_SENSORS_TEST_WP_PATH points at
-             a provisioned install so a bare `phpunit` run stays fast and
-             WordPress-free. -->
+        <!-- A provisioned WordPress reached over real HTTP (see
+             tests/Integration/provision.sh). Self-skips unless
+             BEARDBOT_SENSORS_TEST_WP_PATH points at a provisioned install, so
+             a bare `phpunit` run stays fast and WordPress-free. -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
