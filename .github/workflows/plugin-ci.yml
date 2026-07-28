@@ -1,0 +1,48 @@
+name: Plugin CI
+
+# The wpt-sensors companion plugin (wp-plugin/) is PHP in an otherwise Node
+# repo, so it gets its own workflow, path-scoped to the plugin subtree.
+on:
+  push:
+    branches: [main]
+    paths: ['wp-plugin/**', '.github/workflows/plugin-ci.yml']
+  pull_request:
+    paths: ['wp-plugin/**', '.github/workflows/plugin-ci.yml']
+
+jobs:
+  lint:
+    name: PHP lint + composer validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+      - name: Syntax-check every plugin PHP file
+        run: |
+          set -e
+          find wp-plugin -name '*.php' -not -path '*/vendor/*' -print0 \
+            | xargs -0 -n1 php -l
+      - name: Validate composer.json
+        working-directory: wp-plugin
+        run: composer validate --strict
+
+  unit:
+    name: Unit tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.1', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Install dependencies
+        working-directory: wp-plugin
+        run: composer install --no-interaction --no-progress
+      - name: Run unit suite
+        working-directory: wp-plugin
+        run: vendor/bin/phpunit --testsuite unit
