@@ -1,0 +1,58 @@
+[
+    {
+        "id": "a1a1a1a1",
+        "elType": "section",
+        "elements": [
+            {
+                "id": "b2b2b2b2",
+                "elType": "column",
+                "elements": [
+                    {
+                        "id": "c3c3c3c3",
+                        "elType": "widget",
+                        "widgetType": "heading",
+                        "settings": { "title": "Get in touch" }
+                    },
+                    {
+                        "id": "d4d4d4d4",
+                        "elType": "widget",
+                        "widgetType": "form",
+                        "settings": {
+                            "form_name": "Main Enquiry",
+                            "form_fields": [
+                                { "custom_id": "name", "field_type": "text", "field_label": "Your Name", "required": "true" },
+                                { "custom_id": "email", "field_type": "email", "field_label": "Email Address", "required": "true" },
+                                { "custom_id": "message", "field_type": "textarea", "field_label": "Message" }
+                            ],
+                            "button_text": "Send Enquiry"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "e5e5e5e5",
+        "elType": "container",
+        "elements": [
+            {
+                "id": "f6f6f6f6",
+                "elType": "container",
+                "elements": [
+                    {
+                        "id": "a7a7a7a7",
+                        "elType": "widget",
+                        "widgetType": "form",
+                        "settings": {
+                            "form_name": "Newsletter",
+                            "form_fields": [
+                                { "custom_id": "nl_email", "field_label": "Email", "required": true }
+                            ],
+                            "button_text": "Subscribe"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -21,6 +21,39 @@ what it actually ships; anything not described here does not exist yet.
 - The integration harness: a provisioning script for a throwaway local
   WordPress and a PHPUnit suite that exercises the REST gate over real HTTP
   (see Development below). It runs in CI against a MySQL service.
+- The inventory route (see Endpoints below): the authoritative site inventory
+  the runner consumes instead of sitemap and DOM guesswork.
+
+## Endpoints
+
+All routes are GET under `/?rest_route=/beardbot-sensors/v1/...`, behind the
+same five-gate authorisation (see Security model), and every response carries
+`api_version` and `plugin_version`. The runner treats an `api_version`
+mismatch as plugin-absent.
+
+- **`/version`** — the availability-and-contract probe. Returns only the two
+  version fields.
+- **`/inventory`** — assembled fresh on every call (no caching in v1):
+  - `site` — `name`, `url`, `environment` (`wp_get_environment_type()`).
+  - `pages[]` — published pages only (bounded at 200): `id`, `slug`, `path`
+    (site-relative, navigable under any permalink structure), `title`,
+    `template`.
+  - `forms.plugins` — active flag + version for `elementor_pro`,
+    `gravity_forms`, `wpforms`, `contact_form_7`.
+  - `forms.instances[]` — one entry per discovered form: `provider`,
+    `page_id`/`page_path` (null for Gravity Forms and WPForms, which register
+    forms site-wide), `form_name`, `fields[]` (`type`, `label`, `required`,
+    `custom_id`), `has_recaptcha`, `submit_text`. Elementor Pro forms are
+    found by parsing `_elementor_data` post meta directly (bounded at 200
+    documents) — Elementor does not need to be loaded. Captcha fields set
+    `has_recaptcha` instead of appearing as fillable fields. Contact Form 7
+    is a presence flag only in v1.
+  - `woocommerce` — `active`, `version`, `paths` (shop/cart/checkout/
+    myaccount where published), and `test_product_candidates[]` (max 5):
+    purchasable, in-stock products priced at or under $5.00 or with "test"
+    in the name or slug — the rule that decides what a test checkout may buy.
+  - `theme` — `name`, `version`, `stylesheet`.
+  - `plugins[]` — active plugins only: `file`, `name`, `version`.
 
 ## The read-only guarantee
 

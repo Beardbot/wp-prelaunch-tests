@@ -179,6 +179,7 @@ final class Controller
         ];
 
         register_rest_route(self::REST_NAMESPACE, '/version', $read([self::class, 'version']));
+        register_rest_route(self::REST_NAMESPACE, '/inventory', $read([self::class, 'inventory']));
     }
 
     /**
@@ -191,6 +192,20 @@ final class Controller
             'api_version'    => API_VERSION,
             'plugin_version' => VERSION,
         ], 200);
+    }
+
+    /**
+     * The authoritative site inventory: pages, form instances with real field
+     * schemas, WooCommerce paths and test-product candidates, theme, and
+     * active plugins. Assembled fresh on every call — see
+     * {@see \BeardbotSensors\Inventory}.
+     */
+    public static function inventory(WP_REST_Request $request): WP_REST_Response
+    {
+        return new WP_REST_Response([
+            'api_version'    => API_VERSION,
+            'plugin_version' => VERSION,
+        ] + \BeardbotSensors\Inventory::collect(), 200);
     }
 
     /**
