@@ -1,4 +1,4 @@
-// Client for the wpt-sensors companion WordPress plugin (wp-plugin/wpt-sensors).
+// Client for the beardbot-sensors companion WordPress plugin (wp-plugin/beardbot-sensors).
 //
 // The plugin is ALWAYS optional: every consumer of this client must behave
 // exactly as it did before the plugin existed when the client is null or a
@@ -10,9 +10,9 @@
 // setup behind seemingly-normal runs.
 //
 // Auth is a WordPress application password over HTTP Basic, held by a service
-// user with the manage_wpt_sensors capability. Credentials come from .env via
+// user with the manage_beardbot_sensors capability. Credentials come from .env via
 // the shared per-site convention (src/env-credentials.js):
-//   WPT_SENSOR_USER / WPT_SENSOR_APP_PASSWORD, per-site `_<KEY>` overrides.
+//   BEARDBOT_SENSOR_USER / BEARDBOT_SENSOR_APP_PASSWORD, per-site `_<KEY>` overrides.
 //
 // Routes use the permalink-agnostic ?rest_route= form, with a cache-busting
 // parameter because SG Optimizer caching is enabled on staging at pre-launch.
@@ -27,7 +27,7 @@ const { envForSite } = require('./env-credentials');
 // risking misreading a changed contract.
 const SENSOR_API_VERSION = 1;
 
-const REST_BASE = '/?rest_route=/wpt-sensors/v1/';
+const REST_BASE = '/?rest_route=/beardbot-sensors/v1/';
 
 function isSensorsEnabled(site) {
   return !!(site.sensors && site.sensors.enabled);
@@ -88,8 +88,8 @@ function createSensorClient(site, { log = console } = {}) {
     return null;
   }
 
-  const user = envForSite(site.key, 'WPT_SENSOR_USER');
-  const pass = envForSite(site.key, 'WPT_SENSOR_APP_PASSWORD');
+  const user = envForSite(site.key, 'BEARDBOT_SENSOR_USER');
+  const pass = envForSite(site.key, 'BEARDBOT_SENSOR_APP_PASSWORD');
   if (!user.value || !pass.value) {
     // Loud: the config opted in, so a missing credential is a misconfiguration,
     // not an absent plugin.
@@ -140,7 +140,7 @@ function createSensorClient(site, { log = console } = {}) {
       // credentials, capability, or lockout state are wrong. Never silent.
       noteUnavailable(
         `the sensor endpoint refused the request (HTTP ${response.status}) — ` +
-        `check the service user, application password, and manage_wpt_sensors capability`,
+        `check the service user, application password, and manage_beardbot_sensors capability`,
         true
       );
       return null;

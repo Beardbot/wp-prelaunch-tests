@@ -41,15 +41,15 @@ function versionBody(apiVersion = SENSOR_API_VERSION) {
 }
 
 beforeEach(() => {
-  process.env.WPT_SENSOR_USER = 'wpt-sensors';
-  process.env.WPT_SENSOR_APP_PASSWORD = 'xxxx xxxx xxxx xxxx xxxx xxxx';
+  process.env.BEARDBOT_SENSOR_USER = 'beardbot-sensors';
+  process.env.BEARDBOT_SENSOR_APP_PASSWORD = 'xxxx xxxx xxxx xxxx xxxx xxxx';
 });
 
 afterEach(() => {
-  delete process.env.WPT_SENSOR_USER;
-  delete process.env.WPT_SENSOR_APP_PASSWORD;
-  delete process.env.WPT_SENSOR_USER_MOCK_SITE;
-  delete process.env.WPT_SENSOR_APP_PASSWORD_MOCK_SITE;
+  delete process.env.BEARDBOT_SENSOR_USER;
+  delete process.env.BEARDBOT_SENSOR_APP_PASSWORD;
+  delete process.env.BEARDBOT_SENSOR_USER_MOCK_SITE;
+  delete process.env.BEARDBOT_SENSOR_APP_PASSWORD_MOCK_SITE;
 });
 
 test('returns null for a site without sensors enabled', () => {
@@ -61,16 +61,16 @@ test('returns null for a site without sensors enabled', () => {
 });
 
 test('returns null and warns loudly when sensors are enabled but credentials are missing', () => {
-  delete process.env.WPT_SENSOR_USER;
-  delete process.env.WPT_SENSOR_APP_PASSWORD;
+  delete process.env.BEARDBOT_SENSOR_USER;
+  delete process.env.BEARDBOT_SENSOR_APP_PASSWORD;
   const log = collectingLog();
 
   const client = createSensorClient({ key: 'mock-site', url: 'https://x.test', sensors: { enabled: true } }, { log });
 
   assert.equal(client, null);
   assert.equal(log.warnings.length, 1);
-  assert.match(log.warnings[0], /WPT_SENSOR_USER_MOCK_SITE/);
-  assert.match(log.warnings[0], /WPT_SENSOR_APP_PASSWORD_MOCK_SITE/);
+  assert.match(log.warnings[0], /BEARDBOT_SENSOR_USER_MOCK_SITE/);
+  assert.match(log.warnings[0], /BEARDBOT_SENSOR_APP_PASSWORD_MOCK_SITE/);
 });
 
 test('probe succeeds against a healthy endpoint, sends Basic auth and the rest_route form', async () => {
@@ -90,9 +90,9 @@ test('probe succeeds against a healthy endpoint, sends Basic auth and the rest_r
     assert.equal(state.pluginVersion, '0.1.0');
 
     assert.equal(seen.length, 1);
-    assert.match(seen[0].url, /rest_route=%2Fwpt-sensors%2Fv1%2Fversion|rest_route=\/wpt-sensors\/v1\/version/);
+    assert.match(seen[0].url, /rest_route=%2Fbeardbot-sensors%2Fv1%2Fversion|rest_route=\/beardbot-sensors\/v1\/version/);
     assert.match(seen[0].url, /_wpt=\d+/, 'every call carries the cache-busting parameter');
-    const expected = 'Basic ' + Buffer.from('wpt-sensors:xxxx xxxx xxxx xxxx xxxx xxxx').toString('base64');
+    const expected = 'Basic ' + Buffer.from('beardbot-sensors:xxxx xxxx xxxx xxxx xxxx xxxx').toString('base64');
     assert.equal(seen[0].auth, expected);
   } finally {
     await close();
@@ -121,7 +121,7 @@ test('a 404 (no plugin) resolves to unavailable with a dim note, not a warning',
 test('a 401 (plugin present, bad credentials) warns loudly exactly once', async () => {
   const { site, close } = await mockServer((req, res) => {
     res.statusCode = 401;
-    res.end(JSON.stringify({ code: 'wpt_not_authenticated' }));
+    res.end(JSON.stringify({ code: 'beardbot_sensors_not_authenticated' }));
   });
 
   try {
