@@ -1,0 +1,28 @@
+[
+    {
+        "id": "11aa22bb",
+        "elType": "section",
+        "elements": [
+            {
+                "id": "33cc44dd",
+                "elType": "column",
+                "elements": [
+                    {
+                        "id": "55ee66ff",
+                        "elType": "widget",
+                        "widgetType": "form",
+                        "settings": {
+                            "form_name": "Guarded Quote Request",
+                            "form_fields": [
+                                { "custom_id": "field_1", "field_type": "text" },
+                                { "custom_id": "field_2", "field_type": "recaptcha_v3" },
+                                { "custom_id": "field_3", "field_type": "email", "field_label": "Work Email", "required": "true" }
+                            ],
+                            "button_text": "Request Quote"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]
