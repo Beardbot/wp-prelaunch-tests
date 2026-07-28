@@ -13,6 +13,7 @@
     "postinstall": "npx playwright install chromium",
     "baseline": "node index.js --mode baseline",
     "test": "node index.js --mode test",
+    "test:unit": "node --test \"test/*.test.js\"",
     "add-site": "node bin/add-site.js",
     "server": "node server.js"
   },
