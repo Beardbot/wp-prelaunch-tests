@@ -18,6 +18,9 @@ what it actually ships; anything not described here does not exist yet.
 - The authenticated REST gate (see Security model below) and one proving
   route: `GET /?rest_route=/beardbot-sensors/v1/version` returns
   `{ "api_version": 1, "plugin_version": "0.1.0" }`.
+- The integration harness: a provisioning script for a throwaway local
+  WordPress and a PHPUnit suite that exercises the REST gate over real HTTP
+  (see Development below). It runs in CI against a MySQL service.
 
 ## The read-only guarantee
 
@@ -62,6 +65,9 @@ reimplementations:
 | `beardbot-sensors/includes/Rest/Throttle.php` | `plugin/beardbot-setup/includes/Rest/Throttle.php` |
 | `tests/Unit/RestPermissionTest.php` | `tests/Unit/RestPermissionTest.php` |
 | `tests/Unit/RestThrottleTest.php` | `tests/Unit/RestThrottleTest.php` |
+| `tests/Integration/provision.sh` | `tests/Integration/provision.sh` |
+| `tests/Integration/RestTestCase.php` | `tests/Integration/RestTestCase.php` |
+| `tests/Integration/RestAuthTest.php` | `tests/Integration/RestAuthTest.php` |
 
 All pinned to staging-setup commit
 `e5b7beddd236f1ff48dece0cb9114dd7b8028fd8` (M3.4), with a provenance header in
@@ -81,5 +87,23 @@ composer install
 vendor/bin/phpunit --testsuite unit
 ```
 
-Unit tests are pure PHP with no WordPress. The provisioned-WordPress
-integration harness arrives in the next slice.
+Unit tests are pure PHP with no WordPress.
+
+The integration suite exercises the REST gate over real HTTP against a
+provisioned throwaway WordPress. It needs wp-cli, the MySQL client binaries,
+and a reachable throwaway MySQL server (the database it names is dropped and
+recreated). On Windows, run it under Git Bash. Provision, then export the
+path the script prints and run the suite:
+
+```
+bash tests/Integration/provision.sh
+export BEARDBOT_SENSORS_TEST_WP_PATH=<path printed by the script>
+vendor/bin/phpunit --testsuite integration
+```
+
+Without `BEARDBOT_SENSORS_TEST_WP_PATH` the suite self-skips, so a bare
+`phpunit` run stays fast and WordPress-free. The provisioning also seeds the
+fixtures later slices sense against: WooCommerce and Contact Form 7 active, a
+$1.00 "Test Product", a `testcustomer@youragency.com` customer, and a page
+carrying Elementor form-widget meta (Elementor itself is not installed —
+the form scan parses the meta directly).

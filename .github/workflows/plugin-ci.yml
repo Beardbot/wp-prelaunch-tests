@@ -46,3 +46,52 @@ jobs:
       - name: Run unit suite
         working-directory: wp-plugin
         run: vendor/bin/phpunit --testsuite unit
+
+  integration:
+    name: Integration tests (provisioned WordPress)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      # runner.temp is not available in job-level env (only step-level), so use
+      # github.workspace, which is.
+      WP_PATH: ${{ github.workspace }}/wp-test
+      WP_URL: https://bbs-int.test
+      DB_NAME: bbs_int_test
+      DB_USER: root
+      DB_PASS: root
+      DB_HOST: 127.0.0.1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli
+          coverage: none
+          tools: wp-cli
+      - name: Install dependencies
+        working-directory: wp-plugin
+        run: composer install --no-interaction --no-progress
+      - name: Provision throwaway WordPress + sensor plugin
+        run: bash wp-plugin/tests/Integration/provision.sh
+      - name: Run integration suite
+        working-directory: wp-plugin
+        env:
+          BEARDBOT_SENSORS_TEST_WP_PATH: ${{ github.workspace }}/wp-test
+          BEARDBOT_SENSORS_TEST_WP_URL: https://bbs-int.test
+        # --fail-on-skipped: in CI the provisioned path is always set, so a
+        # skip here means a broken provision — fail loudly, never green-by-skip.
+        run: vendor/bin/phpunit --testsuite integration --fail-on-skipped
