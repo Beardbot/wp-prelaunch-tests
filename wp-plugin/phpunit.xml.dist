@@ -11,13 +11,13 @@
         </testsuite>
         <!-- The integration suite (a provisioned WordPress reached over real
              HTTP, in the style of the staging-setup repo's harness) arrives in
-             the next slice; it will self-skip unless WPT_TEST_WP_PATH points at
+             the next slice; it will self-skip unless BEARDBOT_SENSORS_TEST_WP_PATH points at
              a provisioned install so a bare `phpunit` run stays fast and
              WordPress-free. -->
     </testsuites>
     <source>
         <include>
-            <directory>wpt-sensors/includes</directory>
+            <directory>beardbot-sensors/includes</directory>
         </include>
     </source>
 </phpunit>

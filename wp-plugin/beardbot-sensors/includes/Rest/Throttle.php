@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WptSensors\Rest;
+namespace BeardbotSensors\Rest;
 
 /**
  * COPIED from the beardbot-setup plugin (staging-setup repo).
@@ -37,12 +37,12 @@ namespace WptSensors\Rest;
  * durable table: no plugin storage is reachable pre-authentication, so writing
  * attempt rows anywhere durable would hand an unauthenticated caller an
  * unbounded write primitive on a client site. Sites that want a durable trail
- * hook `wpt_sensors_auth_failed` (fired by {@see Controller}).
+ * hook `beardbot_sensors_auth_failed` (fired by {@see Controller}).
  */
 final class Throttle
 {
     /** Transient key prefix. Short, because transient names are length-capped. */
-    private const PREFIX = 'wpts_auth_fail_';
+    private const PREFIX = 'bbs_auth_fail_';
 
     /** Failures allowed within one window before the caller is locked out. */
     public const DEFAULT_MAX_FAILURES = 5;
@@ -62,7 +62,7 @@ final class Throttle
      * reverse proxy every request shares the proxy's address — which is why the
      * counter is keyed on address *and* username, and why deployments with a
      * real proxy should supply the true client address through the
-     * `wpt_sensors_auth_client_ip` filter rather than have us guess.
+     * `beardbot_sensors_auth_client_ip` filter rather than have us guess.
      *
      * @param array<string, mixed> $server
      */
@@ -121,27 +121,27 @@ final class Throttle
 
     // ─── Configuration (WordPress) ───────────────────────────────────────────
 
-    /** Failures allowed per window. Filter: `wpt_sensors_auth_max_failures`. */
+    /** Failures allowed per window. Filter: `beardbot_sensors_auth_max_failures`. */
     public static function max_failures(): int
     {
-        return max(1, (int) apply_filters('wpt_sensors_auth_max_failures', self::DEFAULT_MAX_FAILURES));
+        return max(1, (int) apply_filters('beardbot_sensors_auth_max_failures', self::DEFAULT_MAX_FAILURES));
     }
 
-    /** Window length in seconds. Filter: `wpt_sensors_auth_lockout_window`. */
+    /** Window length in seconds. Filter: `beardbot_sensors_auth_lockout_window`. */
     public static function window(): int
     {
-        return max(1, (int) apply_filters('wpt_sensors_auth_lockout_window', self::DEFAULT_WINDOW));
+        return max(1, (int) apply_filters('beardbot_sensors_auth_lockout_window', self::DEFAULT_WINDOW));
     }
 
     /**
      * The address this request is throttled under. Filter:
-     * `wpt_sensors_auth_client_ip` — the seam for deployments behind a
+     * `beardbot_sensors_auth_client_ip` — the seam for deployments behind a
      * reverse proxy, which is the only place a forwarded header can be trusted,
      * because only the operator knows the proxy is really there.
      */
     public static function current_ip(): string
     {
-        return (string) apply_filters('wpt_sensors_auth_client_ip', self::client_ip($_SERVER));
+        return (string) apply_filters('beardbot_sensors_auth_client_ip', self::client_ip($_SERVER));
     }
 
     // ─── State (WordPress) ───────────────────────────────────────────────────

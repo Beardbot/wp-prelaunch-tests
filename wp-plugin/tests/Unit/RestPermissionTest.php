@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use WptSensors\Rest\Controller;
+use BeardbotSensors\Rest\Controller;
 
 /**
  * COPIED from the beardbot-setup plugin (staging-setup repo).
@@ -32,7 +32,7 @@ final class RestPermissionTest extends TestCase
 {
     /**
      * The happy path: encrypted, not throttled, allowed by site policy,
-     * authenticated, and holding manage_wpt_sensors.
+     * authenticated, and holding manage_beardbot_sensors.
      */
     public function test_request_with_capability_is_allowed(): void
     {
@@ -48,7 +48,7 @@ final class RestPermissionTest extends TestCase
     /**
      * An authenticated user without the capability is refused. This is the case
      * that matters for the permission model: the site can hand a service user
-     * exactly manage_wpt_sensors, and any other valid login — including a
+     * exactly manage_beardbot_sensors, and any other valid login — including a
      * subscriber, or an editor — gets nothing.
      */
     public function test_authenticated_user_without_capability_is_forbidden(): void
@@ -134,17 +134,22 @@ final class RestPermissionTest extends TestCase
      */
     public function test_only_this_plugins_routes_are_claimed(): void
     {
-        $this->assertTrue(Controller::route_is_ours('/wpt-sensors/v1/version'));
-        $this->assertTrue(Controller::route_is_ours('wpt-sensors/v1/version'));
-        $this->assertTrue(Controller::route_is_ours('/wpt-sensors/v1'));
+        $this->assertTrue(Controller::route_is_ours('/beardbot-sensors/v1/version'));
+        $this->assertTrue(Controller::route_is_ours('beardbot-sensors/v1/version'));
+        $this->assertTrue(Controller::route_is_ours('/beardbot-sensors/v1'));
 
         $this->assertFalse(Controller::route_is_ours('/wp/v2/users/me'));
         $this->assertFalse(Controller::route_is_ours('/'));
         $this->assertFalse(Controller::route_is_ours(''));
 
         // A namespace that merely starts with the same letters is not ours.
-        $this->assertFalse(Controller::route_is_ours('/wpt-sensors-other/v1/version'));
-        $this->assertFalse(Controller::route_is_ours('/wpt-sensors/v2/version'));
+        $this->assertFalse(Controller::route_is_ours('/beardbot-sensors-other/v1/version'));
+        $this->assertFalse(Controller::route_is_ours('/beardbot-sensors/v2/version'));
+
+        // The beardbot-setup plugin's namespace is a sibling, not ours — both
+        // plugins run on the same sites, and each must scope its auth hooks to
+        // its own routes only.
+        $this->assertFalse(Controller::route_is_ours('/beardbot/v1/version'));
     }
 
     /** Every refusal code carries an operator-facing message. */

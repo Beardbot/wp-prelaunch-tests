@@ -1,5 +1,5 @@
 {
-    "name": "beardbot/wpt-sensors",
+    "name": "beardbot/sensors",
     "description": "Read-only sensor plugin for the wp-prelaunch-tests runner: inventory, pre-flight audit, and effect verification over authenticated REST",
     "type": "project",
     "license": "proprietary",
@@ -11,7 +11,7 @@
     },
     "autoload": {
         "psr-4": {
-            "WptSensors\\": "wpt-sensors/includes/"
+            "BeardbotSensors\\": "beardbot-sensors/includes/"
         }
     },
     "autoload-dev": {

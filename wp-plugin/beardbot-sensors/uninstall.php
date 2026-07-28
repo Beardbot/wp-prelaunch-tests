@@ -14,4 +14,4 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 
 require_once __DIR__ . '/includes/Rest/Throttle.php';
 
-\WptSensors\Rest\Throttle::purge_all();
+\BeardbotSensors\Rest\Throttle::purge_all();

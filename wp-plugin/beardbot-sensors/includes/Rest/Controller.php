@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace WptSensors\Rest;
+namespace BeardbotSensors\Rest;
 
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 
-use const WptSensors\API_VERSION;
-use const WptSensors\CAPABILITY;
-use const WptSensors\VERSION;
+use const BeardbotSensors\API_VERSION;
+use const BeardbotSensors\CAPABILITY;
+use const BeardbotSensors\VERSION;
 
 /**
  * COPIED from the beardbot-setup plugin (staging-setup repo).
@@ -41,9 +41,9 @@ use const WptSensors\VERSION;
  *
  *   1. Not currently throttled for repeated authentication failures.
  *   2. Arriving over an encrypted connection.
- *   3. Not refused by the site's own `wpt_sensors_rest_preflight` filter.
+ *   3. Not refused by the site's own `beardbot_sensors_rest_preflight` filter.
  *   4. Authenticated — in practice, a WordPress application password.
- *   5. Holding `manage_wpt_sensors`, the single permission gate for the
+ *   5. Holding `manage_beardbot_sensors`, the single permission gate for the
  *      whole sensor surface.
  *
  * Authentication itself is core's: WordPress application passwords are
@@ -57,20 +57,20 @@ use const WptSensors\VERSION;
  * here runs only after the request has already reached PHP and WordPress, which
  * is strictly worse than a host firewall doing the same job earlier, and
  * REMOTE_ADDR is unreliable behind the reverse proxies most managed WordPress
- * hosts run. The `wpt_sensors_rest_preflight` filter is the seam for sites
+ * hosts run. The `beardbot_sensors_rest_preflight` filter is the seam for sites
  * that want one anyway.
  */
 final class Controller
 {
     /** Vendor-prefixed REST namespace, for the same reason as the plugin slug. */
-    public const REST_NAMESPACE = 'wpt-sensors/v1';
+    public const REST_NAMESPACE = 'beardbot-sensors/v1';
 
     // Refusal codes. Each maps to an HTTP status in status_for().
-    public const ERR_THROTTLED = 'wpt_too_many_attempts';
-    public const ERR_INSECURE  = 'wpt_insecure_transport';
-    public const ERR_PREFLIGHT = 'wpt_request_refused';
-    public const ERR_NO_AUTH   = 'wpt_not_authenticated';
-    public const ERR_FORBIDDEN = 'wpt_forbidden';
+    public const ERR_THROTTLED = 'beardbot_sensors_too_many_attempts';
+    public const ERR_INSECURE  = 'beardbot_sensors_insecure_transport';
+    public const ERR_PREFLIGHT = 'beardbot_sensors_request_refused';
+    public const ERR_NO_AUTH   = 'beardbot_sensors_not_authenticated';
+    public const ERR_FORBIDDEN = 'beardbot_sensors_forbidden';
 
     /**
      * Whether this request has already been counted as a failure. One HTTP
@@ -152,7 +152,7 @@ final class Controller
             self::ERR_INSECURE  => 'This endpoint requires an encrypted connection.',
             self::ERR_PREFLIGHT => 'This request was refused by site policy.',
             self::ERR_NO_AUTH   => 'Authentication required. Use a WordPress application password.',
-            default             => 'Your account is not permitted to read WPT sensors on this site.',
+            default             => 'Your account is not permitted to read Beardbot sensors on this site.',
         };
     }
 
@@ -199,7 +199,7 @@ final class Controller
      * `show_in_index` on the routes is not enough: it hides the route entries,
      * but the index's `namespaces` list is built from every registered
      * namespace regardless, so /wp-json/ would still tell an unauthenticated
-     * caller that a `wpt-sensors/v1` surface exists on the site. Recon value
+     * caller that a `beardbot-sensors/v1` surface exists on the site. Recon value
      * only — the permission gate is what actually protects the routes — but
      * the index does not advertise this surface, so both halves are scrubbed
      * here.
@@ -244,7 +244,7 @@ final class Controller
     {
         $username = self::supplied_username();
 
-        $preflight = apply_filters('wpt_sensors_rest_preflight', true, $request);
+        $preflight = apply_filters('beardbot_sensors_rest_preflight', true, $request);
 
         $code = self::decide(
             Throttle::is_locked_out($username),
@@ -439,7 +439,7 @@ final class Controller
      */
     public static function request_is_ssl(): bool
     {
-        return (bool) apply_filters('wpt_sensors_rest_is_ssl', is_ssl());
+        return (bool) apply_filters('beardbot_sensors_rest_is_ssl', is_ssl());
     }
 
     /** The username the caller supplied over HTTP Basic, if any. */
@@ -477,11 +477,11 @@ final class Controller
             'route'    => self::current_route(),
         ];
 
-        do_action('wpt_sensors_auth_failed', $code, $context);
+        do_action('beardbot_sensors_auth_failed', $code, $context);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log(sprintf(
-                '[wpt-sensors] REST auth refused (%s) for user "%s" from %s on %s',
+                '[beardbot-sensors] REST auth refused (%s) for user "%s" from %s on %s',
                 $code,
                 $username,
                 $context['ip'] === '' ? 'unknown' : $context['ip'],

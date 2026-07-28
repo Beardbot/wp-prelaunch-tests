@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use WptSensors\Rest\Throttle;
+use BeardbotSensors\Rest\Throttle;
 
 /**
  * COPIED from the beardbot-setup plugin (staging-setup repo).
@@ -69,13 +69,13 @@ final class RestThrottleTest extends TestCase
      */
     public function test_counter_keys_separate_addresses_and_usernames(): void
     {
-        $a = Throttle::transient_key('203.0.113.9', 'wpt-sensors');
+        $a = Throttle::transient_key('203.0.113.9', 'beardbot-sensors');
         $b = Throttle::transient_key('203.0.113.9', 'admin');
-        $c = Throttle::transient_key('198.51.100.1', 'wpt-sensors');
+        $c = Throttle::transient_key('198.51.100.1', 'beardbot-sensors');
 
         $this->assertNotSame($a, $b, 'Two usernames from one address must count separately.');
         $this->assertNotSame($a, $c, 'Two addresses using one username must count separately.');
-        $this->assertSame($a, Throttle::transient_key('203.0.113.9', 'wpt-sensors'), 'The key must be stable.');
+        $this->assertSame($a, Throttle::transient_key('203.0.113.9', 'beardbot-sensors'), 'The key must be stable.');
     }
 
     /**
