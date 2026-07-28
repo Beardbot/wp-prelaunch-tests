@@ -1,0 +1,30 @@
+name: Runner CI
+
+# Unit tests for the Node runner (node:test, no browser). Path-scoped so
+# plugin-only changes (wp-plugin/) never trigger it — that subtree has its own
+# workflow. --ignore-scripts skips the postinstall Playwright download, which
+# the unit suite does not need.
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'test/**', 'journeys/**', 'bin/**', 'index.js', 'server.js', 'package.json', 'package-lock.json', '.github/workflows/runner-ci.yml']
+  pull_request:
+    paths: ['src/**', 'test/**', 'journeys/**', 'bin/**', 'index.js', 'server.js', 'package.json', 'package-lock.json', '.github/workflows/runner-ci.yml']
+
+jobs:
+  unit:
+    name: Unit tests (node:test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 21+ required: the test:unit script relies on node --test glob
+          # expansion (the directory form mis-resolves on Windows, so the glob
+          # is the one form that works on both dev and CI).
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies (no browser download)
+        run: npm ci --ignore-scripts
+      - name: Run unit suite
+        run: npm run test:unit

@@ -1,4 +1,5 @@
 const { createStepRunner } = require('../../src/step');
+const { envForSite } = require('../../src/env-credentials');
 
 async function run(site, context) {
   const opts = (site.journeyOptions && site.journeyOptions['templates/login']) || {};
@@ -7,9 +8,8 @@ async function run(site, context) {
   const successSelector = opts.successSelector || '[data-wpt="member-dashboard"], .woocommerce-MyAccount-navigation, .wc-block-customer-account';
 
   // Credentials from env — per-site override first, then global fallback
-  const siteKeyUpper = site.key.replace(/[^a-z0-9]/gi, '_').toUpperCase();
-  const email = process.env[`TEST_CUSTOMER_EMAIL_${siteKeyUpper}`] || process.env.TEST_CUSTOMER_EMAIL;
-  const password = process.env[`TEST_CUSTOMER_PASSWORD_${siteKeyUpper}`] || process.env.TEST_CUSTOMER_PASSWORD;
+  const email = envForSite(site.key, 'TEST_CUSTOMER_EMAIL').value;
+  const password = envForSite(site.key, 'TEST_CUSTOMER_PASSWORD').value;
 
   const page = await context.newPage();
   const { step, getResult } = createStepRunner(page, site.key);

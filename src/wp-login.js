@@ -8,7 +8,9 @@
 // journeys) runs as a logged-in visitor without logging in again.
 //
 // Credentials come from the environment, never sites.json — per-site override
-// first, then a global fallback, mirroring journeys/templates/login.js.
+// first, then a global fallback (src/env-credentials.js).
+
+const { envForSite } = require('./env-credentials');
 
 // wp-login.php field IDs are WordPress core defaults and stable across versions.
 const USERNAME_SELECTOR = '#user_login';
@@ -16,9 +18,8 @@ const PASSWORD_SELECTOR = '#user_pass';
 const SUBMIT_SELECTOR = '#wp-submit';
 
 function credentialsFor(site) {
-  const siteKeyUpper = site.key.replace(/[^a-z0-9]/gi, '_').toUpperCase();
-  const username = process.env[`WP_LOGIN_USER_${siteKeyUpper}`] || process.env.WP_LOGIN_USER;
-  const password = process.env[`WP_LOGIN_PASSWORD_${siteKeyUpper}`] || process.env.WP_LOGIN_PASSWORD;
+  const { value: username, suffix: siteKeyUpper } = envForSite(site.key, 'WP_LOGIN_USER');
+  const { value: password } = envForSite(site.key, 'WP_LOGIN_PASSWORD');
   return { username, password, siteKeyUpper };
 }
 
