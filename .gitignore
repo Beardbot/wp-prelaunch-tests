@@ -5,3 +5,4 @@ data/
 .claude/settings.local.json
 wp-plugin/vendor/
 wp-plugin/.phpunit.result.cache
+/.build/
