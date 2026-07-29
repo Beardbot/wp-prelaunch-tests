@@ -37,6 +37,11 @@
       "url": "https://staging.shop.example.com",
       "productionUrl": "https://shop.example.com",
       "pages": ["/", "/shop", "/contact", "/about"],
+      "sensors": {
+        "enabled": true,
+        "strictEffects": false,
+        "allowUnknownEnvironment": false
+      },
       "cookieBannerSelector": "[data-wpt='cookie-dismiss']",
       "journeys": ["templates/woocommerce", "templates/contact-form", "templates/search", "templates/product-filter"],
       "auth": null,

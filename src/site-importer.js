@@ -6,6 +6,9 @@ const readline = require('readline');
 const chalk = require('chalk');
 const { XMLParser } = require('fast-xml-parser');
 
+const { createSensorClient } = require('./sensor-client');
+const { envForSite } = require('./env-credentials');
+
 const configPath = process.env.SITES_CONFIG || path.join(__dirname, '..', 'config', 'sites.json');
 const parser = new XMLParser({ ignoreAttributes: false });
 const TARGET_SITEMAPS = new Set([
@@ -15,10 +18,28 @@ const TARGET_SITEMAPS = new Set([
   'post-sitemap.xml'
 ]);
 
+// Hosts where an explicit http:// is honoured rather than coerced to https:
+// local development targets that genuinely serve plain HTTP. Everything else
+// still coerces — a real staging site given as http:// is a typo, not intent.
+function isLocalHttpHost(hostname) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+  return /\.(test|local|localhost)$/.test(host);
+}
+
 function normalizeUrl(input) {
   let value = input.trim().replace(/\/+$/, '');
-  value = value.replace(/^http:\/\//i, 'https://');
-  if (!/^https:\/\//i.test(value)) {
+  if (/^http:\/\//i.test(value)) {
+    let hostname = '';
+    try {
+      hostname = new URL(value).hostname;
+    } catch (err) {
+      hostname = '';
+    }
+    if (!isLocalHttpHost(hostname)) {
+      value = value.replace(/^http:\/\//i, 'https://');
+    }
+  } else if (!/^https:\/\//i.test(value)) {
     value = `https://${value}`;
   }
   return value.replace(/\/+$/, '');
@@ -268,7 +289,27 @@ async function loadSitemapData(baseUrl) {
   return { sitemaps, foundSitemaps, hasSitemap: false };
 }
 
-function buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath }) {
+// Derive the import inputs from the sensor inventory: authoritative pages
+// (capped — the runner tests a representative set, not the whole site) plus
+// sample product paths, WooCommerce state, and the site's real name. Works
+// behind maintenance mode, since nothing here needs a public page render.
+function siteFromInventory(inventory, baseUrl) {
+  const woo = inventory.woocommerce || {};
+  const pagePaths = (inventory.pages || []).map(page => page.path).filter(Boolean);
+  const productPaths = (woo.test_product_candidates || [])
+    .map(candidate => candidate.path)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return {
+    name: (inventory.site && inventory.site.name) || siteKeyFromHostname(baseUrl.hostname),
+    isWooCommerce: !!woo.active,
+    shopPath: (woo.paths && woo.paths.shop) || '/shop/',
+    pages: uniqueSorted(['/', ...pagePaths.slice(0, 25), ...productPaths])
+  };
+}
+
+function buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath, sensors = false }) {
   const site = {
     name,
     key: siteKeyFromHostname(baseUrl.hostname),
@@ -277,6 +318,10 @@ function buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath }) {
     journeys: isWooCommerce ? ['woocommerce'] : [],
     auth: null
   };
+
+  if (sensors) {
+    site.sensors = { enabled: true };
+  }
 
   if (isWooCommerce && shopPath !== '/shop/') {
     site.journeyOptions = {
@@ -287,8 +332,9 @@ function buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath }) {
   return site;
 }
 
-function printPreview(site) {
+function printPreview(site, source) {
   console.log(chalk.bold('\nSite preview'));
+  console.log(`${chalk.blue('Source:')} ${source}`);
   console.log(`${chalk.blue('Name:')} ${site.name}`);
   console.log(`${chalk.blue('Key:')} ${site.key}`);
   console.log(`${chalk.blue('URL:')} ${site.url}`);
@@ -312,7 +358,17 @@ function confirm(question) {
   });
 }
 
-async function importSite(url, { dryRun = false } = {}) {
+// Whether .env holds sensor credentials that would apply to this site key
+// (per-site override or global fallback). Import-time gate only: no creds
+// means no probe, so sites without the plugin never even see a request.
+function sensorCredsPresent(siteKey) {
+  return !!(
+    envForSite(siteKey, 'BEARDBOT_SENSOR_USER').value
+    && envForSite(siteKey, 'BEARDBOT_SENSOR_APP_PASSWORD').value
+  );
+}
+
+async function importSite(url, { dryRun = false, sensors = true } = {}) {
   const normalizedUrl = normalizeUrl(url);
   const baseUrl = new URL(normalizedUrl);
   const config = readConfig();
@@ -324,33 +380,54 @@ async function importSite(url, { dryRun = false } = {}) {
   }
 
   console.log(chalk.blue(`Inspecting ${normalizedUrl}...`));
-  const { sitemaps, foundSitemaps, hasSitemap } = await loadSitemapData(normalizedUrl);
-  let homepage = await fetchOk(normalizedUrl);
-  let homepageHtml = homepage ? homepage.body : '';
-  let isWooCommerce = await detectWooCommerce(normalizedUrl, foundSitemaps);
-  let pages;
-  let shopPath = '/shop/';
 
-  if (hasSitemap) {
-    shopPath = isWooCommerce
-      ? selectShopPath([...sitemaps.page, ...sitemaps.product_cat], baseUrl)
-      : '/shop/';
-    pages = selectPagesFromSitemaps(sitemaps, baseUrl, isWooCommerce);
-  } else {
-    if (!homepage) {
-      homepage = await fetchOk(`${normalizedUrl}/`);
-      homepageHtml = homepage ? homepage.body : '';
-    }
-    isWooCommerce = isWooCommerce || detectWooCommerceFromHtml(homepageHtml);
-    pages = extractNavLinks(homepageHtml, baseUrl);
-    if (isWooCommerce) {
-      pages = uniqueSorted([...pages, '/cart/', '/checkout/', '/my-account/']);
-    }
+  // Inventory-first: when the companion plugin answers, its inventory is
+  // authoritative — no sitemap guesswork, and it works behind maintenance
+  // mode. Anything short of a working sensor (no creds, plugin absent,
+  // misconfiguration) falls through to the existing flow unchanged.
+  let inventory = null;
+  const prospectiveKey = siteKeyFromHostname(baseUrl.hostname);
+  if (sensors && sensorCredsPresent(prospectiveKey)) {
+    const client = createSensorClient({ key: prospectiveKey, url: normalizedUrl, sensors: { enabled: true } });
+    inventory = client ? await client.inventory() : null;
   }
 
-  const name = extractTitle(homepageHtml, siteKeyFromHostname(baseUrl.hostname));
-  const site = buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath });
-  printPreview(site);
+  let site;
+  let source;
+  if (inventory) {
+    site = buildSiteConfig({ ...siteFromInventory(inventory, baseUrl), baseUrl, sensors: true });
+    source = 'sensor inventory (beardbot-sensors plugin)';
+  } else {
+    const { sitemaps, foundSitemaps, hasSitemap } = await loadSitemapData(normalizedUrl);
+    let homepage = await fetchOk(normalizedUrl);
+    let homepageHtml = homepage ? homepage.body : '';
+    let isWooCommerce = await detectWooCommerce(normalizedUrl, foundSitemaps);
+    let pages;
+    let shopPath = '/shop/';
+
+    if (hasSitemap) {
+      shopPath = isWooCommerce
+        ? selectShopPath([...sitemaps.page, ...sitemaps.product_cat], baseUrl)
+        : '/shop/';
+      pages = selectPagesFromSitemaps(sitemaps, baseUrl, isWooCommerce);
+    } else {
+      if (!homepage) {
+        homepage = await fetchOk(`${normalizedUrl}/`);
+        homepageHtml = homepage ? homepage.body : '';
+      }
+      isWooCommerce = isWooCommerce || detectWooCommerceFromHtml(homepageHtml);
+      pages = extractNavLinks(homepageHtml, baseUrl);
+      if (isWooCommerce) {
+        pages = uniqueSorted([...pages, '/cart/', '/checkout/', '/my-account/']);
+      }
+    }
+
+    const name = extractTitle(homepageHtml, siteKeyFromHostname(baseUrl.hostname));
+    site = buildSiteConfig({ name, baseUrl, pages, isWooCommerce, shopPath });
+    source = hasSitemap ? 'sitemap' : 'homepage DOM';
+  }
+
+  printPreview(site, source);
 
   if (dryRun) {
     console.log(chalk.bold('\nDry run JSON'));
@@ -374,4 +451,4 @@ async function importSite(url, { dryRun = false } = {}) {
   return site;
 }
 
-module.exports = { importSite };
+module.exports = { importSite, normalizeUrl, isLocalHttpHost, siteFromInventory };
