@@ -170,6 +170,19 @@ between the two plugins until a THIRD consumer appears — at that point they
 move to a shared composer package rather than a third copy. Do not extract
 earlier; do not copy a third time.
 
+## Building the installable zip
+
+```
+bash wp-plugin/build.sh
+```
+
+Writes `.build/beardbot-sensors-<version>.zip` (gitignored directory, same
+convention as the wp-staging-setup project), with the forward-slash entry
+paths WordPress on Linux hosting requires — do not zip it by hand with
+PowerShell's Compress-Archive, which writes backslash entries. Install via
+wp-admin → Plugins → Add New → Upload; re-uploading a newer build over an
+existing install is supported (`maybe_install()` migrates the schema).
+
 ## Development
 
 ```
