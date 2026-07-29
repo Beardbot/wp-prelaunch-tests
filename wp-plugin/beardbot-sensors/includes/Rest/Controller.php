@@ -180,6 +180,14 @@ final class Controller
 
         register_rest_route(self::REST_NAMESPACE, '/version', $read([self::class, 'version']));
         register_rest_route(self::REST_NAMESPACE, '/inventory', $read([self::class, 'inventory']));
+        register_rest_route(self::REST_NAMESPACE, '/preflight', $read([self::class, 'preflight'], [
+            'test_customer' => [
+                'type'              => 'string',
+                'required'          => false,
+                'validate_callback' => static fn($value): bool => is_string($value) && (bool) is_email($value),
+                'sanitize_callback' => 'sanitize_email',
+            ],
+        ]));
     }
 
     /**
@@ -206,6 +214,44 @@ final class Controller
             'api_version'    => API_VERSION,
             'plugin_version' => VERSION,
         ] + \BeardbotSensors\Inventory::collect(), 200);
+    }
+
+    /**
+     * The machine-checked staging checklist plus the environment verdict.
+     * Reports only — which checks block a run is runner-side policy. See
+     * {@see \BeardbotSensors\Preflight} and {@see \BeardbotSensors\Environment}.
+     */
+    public static function preflight(WP_REST_Request $request): WP_REST_Response
+    {
+        $email = $request->get_param('test_customer');
+
+        return new WP_REST_Response([
+            'api_version'    => API_VERSION,
+            'plugin_version' => VERSION,
+        ] + \BeardbotSensors\Preflight::collect(is_string($email) && $email !== '' ? $email : null), 200);
+    }
+
+    /**
+     * Forbid caching of every response in this namespace. Pre-launch sites
+     * run page caches (SG Optimizer et al.), and a cached inventory or
+     * preflight would be answered from before the operator's latest settings
+     * flip — the one moment the answer must be current. Scoped by
+     * route_is_ours() so nothing else on the site loses its cache.
+     *
+     * @param mixed $response
+     * @return mixed
+     */
+    public static function no_store($response, $server, $request)
+    {
+        if (!$response instanceof WP_REST_Response) {
+            return $response;
+        }
+        if (!$request instanceof WP_REST_Request || !self::route_is_ours((string) $request->get_route())) {
+            return $response;
+        }
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+
+        return $response;
     }
 
     /**

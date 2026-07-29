@@ -23,6 +23,12 @@ what it actually ships; anything not described here does not exist yet.
   (see Development below). It runs in CI against a MySQL service.
 - The inventory route (see Endpoints below): the authoritative site inventory
   the runner consumes instead of sitemap and DOM guesswork.
+- The preflight route: the machine-checked staging checklist plus an
+  environment verdict. The plugin only reports — which checks block a run is
+  runner-side policy, so policy changes never require redeploying PHP.
+- Cache discipline: every response in the namespace carries
+  `Cache-Control: no-store, no-cache, must-revalidate`, so a site's page
+  cache can never answer a preflight from before the latest settings flip.
 
 ## Endpoints
 
@@ -54,6 +60,29 @@ mismatch as plugin-absent.
     in the name or slug — the rule that decides what a test checkout may buy.
   - `theme` — `name`, `version`, `stylesheet`.
   - `plugins[]` — active plugins only: `file`, `name`, `version`.
+- **`/preflight?test_customer=<email>`** — `environment`
+  (`wp_environment_type`, `verdict`, `signals`) plus `checks[]` of
+  `{id, status: pass|fail|unknown, detail}`. `unknown` means "could not
+  determine", never "probably fine".
+  - The verdict: `production` only when WordPress claims production with no
+    staging counter-signal; `staging` on any positive signal (environment
+    type local/development/staging, `blog_public=0`, or a host matching
+    `staging.*`, `dev.*`, `*.beardbot.dev`, `*.test`, `*.local`); `unknown`
+    otherwise. Signals are returned so the runner's report can show its
+    working.
+  - The checks, in order: `not_production`; `payment_gateway_test_mode`
+    (offline gateways ignored; Stripe/WooPayments/PayPal recognised — a
+    recognised gateway not in test mode fails by name, an unrecognised
+    enabled gateway is `unknown`); `captcha_disabled` (Elementor form scan
+    plus Gravity Forms captcha fields; site-wide Elementor Pro reCAPTCHA
+    keys are noted in the detail); `test_product_exists` (same candidate
+    rule as the inventory); `test_customer_exists` (checks the supplied
+    email, `unknown` when none supplied); `maintenance_mode` (Elementor —
+    failing tells the runner to authenticate via wp-login);
+    `permalink_structure` (plain permalinks fail); `sitemap_present` (core
+    sitemaps actually enabled, or Yoast/Rank Math present);
+    `sensor_events_ready` (the events table exists — fails until the events
+    sensor ships).
 
 ## The read-only guarantee
 

@@ -250,8 +250,13 @@ final class Inventory
         ];
     }
 
-    /** @return array<int, array<string, mixed>> */
-    private static function test_product_candidates(): array
+    /**
+     * Public because the preflight's test_product_exists check asks the same
+     * question; the rule must not fork between the two surfaces.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function test_product_candidates(): array
     {
         if (!function_exists('\wc_get_products')) {
             return [];
