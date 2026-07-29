@@ -3,8 +3,8 @@
 // Credentials never live in sites.json; they come from .env named by
 // convention: a per-site override first (`NAME_<KEY>`), then a global
 // fallback (`NAME`). The site-key suffix mangles every non-alphanumeric
-// character to '_' and uppercases, so `lqs.beardbot.dev` reads
-// `NAME_LQS_BEARDBOT_DEV`. This module replaces the previously duplicated
+// character to '_' and uppercases, so `test.beardbot.dev` reads
+// `NAME_TEST_BEARDBOT_DEV`. This module replaces the previously duplicated
 // copies of that logic in src/wp-login.js and journeys/templates/login.js.
 
 function envKeySuffix(siteKey) {

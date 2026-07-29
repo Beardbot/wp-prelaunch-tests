@@ -24,7 +24,7 @@ final class EnvironmentVerdictTest extends TestCase
             'production but search-blocked is staging' => ['production', false, 'www.client.com', 'staging'],
             'production on a staging host is staging'  => ['production', true, 'staging.client.com', 'staging'],
             'production on a dev host is staging'      => ['production', true, 'dev.client.com', 'staging'],
-            'production on beardbot.dev is staging'    => ['production', true, 'lqs.beardbot.dev', 'staging'],
+            'production on beardbot.dev is staging'    => ['production', true, 'test.beardbot.dev', 'staging'],
             'production on a .test host is staging'    => ['production', true, 'bbs-int.test', 'staging'],
             'production on a .local host is staging'   => ['production', true, 'mysite.local', 'staging'],
             'local environment type is staging'        => ['local', true, 'www.client.com', 'staging'],

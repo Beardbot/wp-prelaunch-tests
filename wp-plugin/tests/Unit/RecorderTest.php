@@ -22,7 +22,7 @@ final class RecorderTest extends TestCase
     public static function runIds(): array
     {
         return [
-            'runner-minted shape is valid' => ['wpt_lqs_20260728T101500_a1b2c3', true],
+            'runner-minted shape is valid' => ['wpt_test_20260728T101500_a1b2c3', true],
             'minimum length (8) is valid'  => ['abcd1234', true],
             'maximum length (64) is valid' => [str_repeat('a', 64), true],
             'hyphens and underscores ok'   => ['run-id_OK-123', true],
