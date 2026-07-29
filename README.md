@@ -115,6 +115,36 @@ the generator behaves exactly as before.
 
 If `data-wpt` elements are found that don't match any built-in template (e.g. an LMS, booking widget), the generator notes them and points you at the **`create-journey` skill** (`.claude/skills/create-journey`). Invoke it with a plain-language description of the flow and the site key: it walks the live staging flow, writes `journeys/custom/<key>.js`, wires it into `sites.json`, runs `prelaunch-test <key>`, and leaves the result for you to review and commit. Custom journeys are hand-reviewed by design — see [`docs/custom-journeys.md`](docs/custom-journeys.md).
 
+## Preflight and Server Corroboration
+
+On sites running the beardbot-sensors plugin, `prelaunch-test` adds two
+server-side layers around the browser checks:
+
+**Preflight** runs the plugin's machine-checked staging checklist before any
+journey. Which checks block is decided in the runner (`src/sensor-run.js`),
+never in PHP: an environment verdict of `production` blocks every journey and
+fails the site with no override; a verdict that is not clearly staging fails
+closed unless the site sets `"sensors": { "allowUnknownEnvironment": true }`;
+a payment gateway in live mode blocks only checkout-capable journeys
+(woocommerce and `*checkout*`). Everything else the preflight reports —
+captcha, test product/customer, maintenance mode, permalinks, sitemap — is
+advisory and shown in the report's Preflight block.
+
+**Effect corroboration** verifies that a journey's UI success actually
+happened server-side. Each run mints a per-site run id and sends it as an
+`X-WPT-Run-ID` header on same-origin requests only; the plugin records the
+effects it causes (form entries, mail handoffs, orders) against that id, and
+the runner fetches them after the journeys. A contact-form journey is
+corroborated when a `form_submission` and a `mail` event were both recorded.
+A miss is **advisory by default** — amber in the report and included in
+notifications, but the site still passes — because a WAF stripping the header
+would otherwise fail every run. Set `"sensors": { "strictEffects": true }`
+once the header path is proven on a host to make misses fail the site.
+
+Sites without the plugin are untouched: no header, no preflight, no effects —
+exactly the pre-plugin behaviour. Production smoke runs never send the header
+or contact the plugin at all.
+
 ## Running in CI
 
 The [Scheduled site tests](.github/workflows/scheduled.yml) workflow is triggered manually from the GitHub Actions UI with an optional site key — no local setup required. The weekly schedule is intentionally disabled until there are launched sites worth monitoring: with an empty `sites.ci.json`, a scheduled run would test nothing yet report green. A run against an empty site list now fails loudly, so re-enabling the `schedule:` trigger later can never silently go green. It reads [`config/sites.ci.json`](config/sites.ci.json), a committed config with staging URLs only. Credentials come from repository secrets: `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEST_CUSTOMER_EMAIL`, `TEST_CUSTOMER_PASSWORD`. HTML reports and failure screenshots are uploaded as a workflow artifact (30-day retention).

@@ -19,6 +19,9 @@ const { saveRun } = require('./db');
 const { generateReport } = require('./reporter');
 const { sendNotification, sendSlackNotification } = require('./notifier');
 const { authenticateWpLogin, isWpLoginEnabled } = require('./wp-login');
+const { createSensorClient } = require('./sensor-client');
+const { envForSite } = require('./env-credentials');
+const { makeRunId, evaluatePreflight, journeyBlockReason, assembleEffects, EFFECT_EXPECTATIONS } = require('./sensor-run');
 
 const BLOCKED_DOMAINS = [
   'google-analytics.com',
@@ -30,7 +33,7 @@ const BLOCKED_DOMAINS = [
   'adservice.google.com'
 ];
 
-async function createContext(browser, site) {
+async function createContext(browser, site, runId = null) {
   const context = await browser.newContext({
     viewport: {
       width: config.settings.screenshotWidth || 1280,
@@ -38,14 +41,34 @@ async function createContext(browser, site) {
     }
   });
 
-  // Block analytics and tracking to avoid polluting client dashboards and speed up runs
+  // The site's own origin, for the run-id header scope below.
+  let siteOrigin = null;
+  try {
+    siteOrigin = new URL(site.url).origin;
+  } catch (_) {}
+
+  // Block analytics and tracking to avoid polluting client dashboards and
+  // speed up runs. When a run id exists, same-origin requests also carry the
+  // X-WPT-Run-ID header so the sensor plugin's Recorder can attribute
+  // server-side effects (this rides the form's AJAX POST too). Strict origin
+  // comparison, not a prefix match: third parties must never see the id.
   await context.route('**/*', route => {
     const url = route.request().url();
     if (BLOCKED_DOMAINS.some(domain => url.includes(domain))) {
       route.abort();
-    } else {
-      route.continue();
+      return;
     }
+    if (runId && siteOrigin) {
+      let origin = null;
+      try {
+        origin = new URL(url).origin;
+      } catch (_) {}
+      if (origin === siteOrigin) {
+        route.continue({ headers: { ...route.request().headers(), 'X-WPT-Run-ID': runId } });
+        return;
+      }
+    }
+    route.continue();
   });
 
   // Maintenance-mode staging sites hide everything behind a logged-in session.
@@ -131,10 +154,44 @@ async function runTests(siteKeys) {
       flaky: false
     };
 
+    // One sensor client and one run id per site per invocation. Both are null
+    // when the site has no working sensor setup, and every sensor-dependent
+    // step below degrades to the pre-plugin behaviour on null.
+    const sensorClient = createSensorClient(site);
+    const runId = sensorClient ? makeRunId(site.key) : null;
+
     const browser = await chromium.launch();
 
     try {
-      const context = await createContext(browser, site);
+      const context = await createContext(browser, site, runId);
+
+      // Preflight: the plugin's machine-checked staging checklist. Which
+      // checks block is runner-side policy (sensor-run.js). Journeys consult
+      // the policy below; the read-only checks (visual, links, console) always
+      // run — they cannot pollute anything.
+      let preflightPolicy = null;
+      if (sensorClient) {
+        const testCustomer = envForSite(site.key, 'TEST_CUSTOMER_EMAIL').value;
+        const preflight = await sensorClient.preflight(testCustomer || undefined);
+        if (preflight) {
+          preflightPolicy = evaluatePreflight(preflight, site);
+          siteResults.preflight = {
+            environment: preflight.environment,
+            checks: preflight.checks,
+            policy: preflightPolicy
+          };
+          const passCount = (preflight.checks || []).filter(c => c.status === 'pass').length;
+          console.log(chalk.blue(`  Preflight: environment verdict "${preflightPolicy.verdict}", ${passCount}/${(preflight.checks || []).length} checks pass`));
+          if (preflightPolicy.blockAll) {
+            console.log(chalk.red(`  ✗ Preflight: ${preflightPolicy.blockAll}`));
+          } else if (preflightPolicy.paymentBlock) {
+            console.log(chalk.red(`  ✗ Preflight: payment gateway in live mode — checkout journeys will be blocked`));
+          }
+          if (preflightPolicy.advisories.length > 0) {
+            console.log(chalk.yellow(`  ⚠ Preflight advisories: ${preflightPolicy.advisories.map(a => a.id).join(', ')}`));
+          }
+        }
+      }
 
       // Visual diff
       console.log(chalk.blue('  Running visual diff...'));
@@ -167,9 +224,23 @@ async function runTests(siteKeys) {
         : chalk.green(`  ✓ Console: no errors`)
       );
 
-      // Journeys
-      if (site.journeys && site.journeys.length > 0) {
+      // Journeys. A sitewide preflight block skips them all (the block reason
+      // lives in siteResults.preflight and fails the site below); a scoped
+      // payment block skips only checkout-capable journeys, recorded as
+      // blocked entries so the report shows exactly what did not run and why.
+      if (preflightPolicy && preflightPolicy.blockAll) {
+        console.log(chalk.red('  ✗ Journeys skipped — blocked by preflight'));
+      } else if (site.journeys && site.journeys.length > 0) {
         for (const journeyName of site.journeys) {
+          const blockReason = journeyBlockReason(preflightPolicy, journeyName);
+          if (blockReason) {
+            console.log(chalk.red(`  ✗ Journey "${journeyName}" skipped — ${blockReason}`));
+            siteResults.journeys.push({
+              name: journeyName, passed: false, flaky: false,
+              blocked: true, failedStep: blockReason, steps: []
+            });
+            continue;
+          }
           console.log(chalk.blue(`  Running journey: ${journeyName}...`));
           const journeyResult = await runJourney(journeyName, site, context);
           siteResults.journeys.push(journeyResult);
@@ -190,8 +261,37 @@ async function runTests(siteKeys) {
         visualFails === 0 &&
         linkFails === 0 &&
         errorPages === 0 &&
-        siteResults.journeys.every(j => j.passed)
+        siteResults.journeys.every(j => j.passed) &&
+        !(preflightPolicy && preflightPolicy.blockAll)
       );
+
+      // Effect corroboration: after the journeys, ask the plugin what this
+      // run's id actually caused server-side. Advisory by default — a miss
+      // turns amber and notifies but does not flip passed — because a WAF
+      // stripping the header would otherwise fail every run; sites opt into
+      // failing via sensors.strictEffects once the header path is proven.
+      const expectsEffects = siteResults.journeys.some(j => !j.blocked && EFFECT_EXPECTATIONS[j.name]);
+      if (sensorClient && runId && expectsEffects) {
+        const eventsResponse = await sensorClient.events(runId);
+        siteResults.effects = assembleEffects(
+          siteResults.journeys,
+          eventsResponse ? (eventsResponse.events || []) : null
+        );
+
+        const corroborated = siteResults.effects.filter(e => e.corroborated === true);
+        const misses = siteResults.effects.filter(e => e.corroborated === false);
+        for (const effect of corroborated) {
+          const observed = effect.observed.map(o => `${o.count} ${o.event_type}${o.provider ? ` (${o.provider})` : ''}`).join(', ');
+          console.log(chalk.green(`  ✓ Server corroborated "${effect.journey}": ${observed}`));
+        }
+        for (const effect of misses) {
+          console.log(chalk.yellow(`  ⚠ Server corroboration missing for "${effect.journey}": expected ${effect.missing.join(', ')} — not recorded by the plugin`));
+        }
+        if (misses.length > 0 && site.sensors && site.sensors.strictEffects) {
+          console.log(chalk.red('  ✗ strictEffects is on — corroboration miss fails the site'));
+          siteResults.passed = false;
+        }
+      }
 
     } catch (err) {
       console.error(chalk.red(`  ✗ Test run error: ${err.message}`));
@@ -214,11 +314,14 @@ async function finishRun(allResults) {
 
   const failures = allResults.filter(r => !r.passed);
   const flakyCount = allResults.reduce((n, r) => n + r.journeys.filter(j => j.flaky).length, 0);
+  const effectsMissCount = allResults.reduce(
+    (n, r) => n + (r.effects || []).filter(e => e.corroborated === false).length, 0
+  );
 
-  // Notify on failures OR on flaky passes — a flaky result that never surfaced in
-  // a notification would be indistinguishable from a clean pass to anyone not
-  // reading the report.
-  if (failures.length > 0 || flakyCount > 0) {
+  // Notify on failures, flaky passes, OR corroboration misses — an advisory
+  // miss that never surfaced in a notification would be indistinguishable
+  // from a corroborated pass to anyone not reading the report.
+  if (failures.length > 0 || flakyCount > 0 || effectsMissCount > 0) {
     // Each channel gates itself on its enabled flag; a notification failure
     // must not turn a completed test run into a crashed one
     try {
@@ -235,7 +338,8 @@ async function finishRun(allResults) {
 
   const totalPassed = allResults.length - failures.length;
   const flakyNote = flakyCount > 0 ? chalk.yellow(`  ${flakyCount} flaky`) : '';
-  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${failures.length > 0 ? chalk.red(failures.length + ' failed') : ''}${flakyNote}`));
+  const missNote = effectsMissCount > 0 ? chalk.yellow(`  ${effectsMissCount} uncorroborated`) : '';
+  console.log(chalk.bold(`\nResults: ${chalk.green(totalPassed + ' passed')}  ${failures.length > 0 ? chalk.red(failures.length + ' failed') : ''}${flakyNote}${missNote}`));
 
   return allResults;
 }
@@ -253,7 +357,8 @@ async function runProductionSmoke(siteKeys) {
     // Production is smoke-only: pages load and console is clean.
     // Functional journeys, form submissions, and visual diffs never run here.
     // auth is cleared too — production is live, not maintenance-mode, and we
-    // never log into a production admin during a smoke run.
+    // never log into a production admin during a smoke run. No sensor client
+    // and no run id either: production requests must not carry the header.
     const prodSite = { ...site, url: site.productionUrl, journeys: [], auth: null };
     console.log(chalk.bold(`\n→ Production smoke: ${site.name} (${site.productionUrl})`));
 
