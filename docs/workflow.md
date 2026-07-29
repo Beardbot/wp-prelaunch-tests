@@ -239,3 +239,9 @@ Before running tests against a staging environment, confirm:
 - A test customer account exists (`testcustomer@youragency.com`)
 - Cookie consent banner has a `[data-wpt="cookie-dismiss"]` attribute on its dismiss button
 - Elementor entrance animations are disabled (Elementor → Settings → Advanced → Disable scroll effects) — or leave enabled and rely on the scroll-then-screenshot behaviour
+
+On sites running the beardbot-sensors plugin (see `docs/plugin.md`), the first
+five items are no longer unenforced discipline: `prelaunch-test` runs the
+plugin's preflight before any journey, blocks journeys when the environment
+verdict or a live payment gateway makes running unsafe, and reports the rest
+as advisories. See "Preflight and Server Corroboration" in the README.
