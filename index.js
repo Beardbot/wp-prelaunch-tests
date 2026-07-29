@@ -39,6 +39,7 @@ async function main() {
     console.log('  add-site <url> --no-sensors       — skip the companion-plugin inventory, use sitemap/DOM only');
     console.log('  generate-journey <key>            — generate journeyOptions config from live DOM');
     console.log('  generate-journey <key> --dry-run  — preview without writing');
+    console.log('  generate-journey <key> --no-sensors  — skip the companion-plugin inventory, inspect the DOM only');
     console.log('');
     console.log(chalk.dim("  Didn't run npm link? Use: npm run baseline  /  npm run test -- <key>  /  npm run add-site -- <url>"));
     process.exit(0);
@@ -75,7 +76,7 @@ async function main() {
     const { generateJourney } = require('./src/journey-generator');
     console.log(chalk.blue('Mode: generating journey config from live DOM\n'));
     for (const key of siteKeys) {
-      await generateJourney(key, { dryRun: !!args['dry-run'] });
+      await generateJourney(key, { dryRun: !!args['dry-run'], sensors: args.sensors !== false });
     }
   }
 }

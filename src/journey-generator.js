@@ -4,6 +4,7 @@ const path = require('path');
 const readline = require('readline');
 const chalk = require('chalk');
 const { chromium } = require('playwright');
+const { createSensorClient } = require('./sensor-client');
 
 const configPath = process.env.SITES_CONFIG
   || path.join(__dirname, '..', 'config', 'sites.json');
@@ -13,6 +14,51 @@ const TEMPLATE_WPT_VALUES = new Set([
   'contact-form-submit', 'search-input', 'cookie-dismiss', 'member-dashboard',
   'product-filter', 'post-filter'
 ]);
+
+// ─── Sensor inventory helpers ────────────────────────────────────────────────
+//
+// The optional beardbot-sensors plugin reports where forms actually live and
+// what fields they declare. The DOM inspection stays the selector authority —
+// the inventory only points it at the right pages and supplies authoritative
+// field labels where the schema knows them.
+
+// Field types the contact-form journey can fill via getByLabel().fill().
+const FILLABLE_FIELD_TYPES = new Set(['text', 'email', 'tel', 'url', 'number', 'textarea']);
+
+function normalizePathname(pathname) {
+  const trimmed = (pathname || '').replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
+
+// Paths worth inspecting according to the inventory: pages hosting a known
+// form instance, plus the real WooCommerce paths (shop for product detection,
+// myaccount for login detection at its actual location).
+function inventoryPaths(inventory) {
+  if (!inventory) return [];
+  const paths = ((inventory.forms && inventory.forms.instances) || [])
+    .map(instance => instance.page_path)
+    .filter(Boolean);
+  paths.push(...Object.values((inventory.woocommerce && inventory.woocommerce.paths) || {}));
+  return [...new Set(paths)];
+}
+
+// The inventory form instance living at the given pathname, if any.
+function inventoryFormAt(inventory, pathname) {
+  if (!inventory) return null;
+  const target = normalizePathname(pathname);
+  return ((inventory.forms && inventory.forms.instances) || [])
+    .find(instance => instance.page_path && normalizePathname(instance.page_path) === target)
+    || null;
+}
+
+// Authoritative journey fields from a form schema: labelled, fillable fields
+// in the form's own order. Unfillable types (selects, checkboxes, uploads)
+// are excluded because the journey fills fields via getByLabel().fill().
+function fieldsFromSchema(instance) {
+  return ((instance && instance.fields) || [])
+    .filter(field => field.label && FILLABLE_FIELD_TYPES.has(field.type))
+    .map(field => ({ label: field.label, value: '' }));
+}
 
 // ─── Config helpers ──────────────────────────────────────────────────────────
 
@@ -75,11 +121,15 @@ async function extractPageData(page) {
 
 // ─── Inspection ──────────────────────────────────────────────────────────────
 
-async function inspectSite(site) {
+async function inspectSite(site, inventory = null) {
   const pagesToInspect = new Set(site.pages.map(p => site.url + p));
 
   for (const extra of ['/contact', '/contact-us', '/my-account']) {
     pagesToInspect.add(site.url + extra);
+  }
+
+  for (const inventoryPath of inventoryPaths(inventory)) {
+    pagesToInspect.add(site.url + inventoryPath);
   }
 
   if (site.journeys?.some(j => j.includes('woocommerce'))) {
@@ -117,13 +167,29 @@ async function inspectSite(site) {
 
 // ─── Template detection ───────────────────────────────────────────────────────
 
-function detectTemplates(inspections, site) {
+function detectTemplates(inspections, site, inventory = null) {
   const detected = {};
 
-  for (const [pageUrl, data] of Object.entries(inspections)) {
+  // First-match wins below, so pages the inventory knows host a form get first
+  // pick — a stable sort keeps the original order for everything else, which
+  // makes the no-inventory path identical to before.
+  const entries = Object.entries(inspections).map(([pageUrl, data]) => {
     let pathname;
     try { pathname = new URL(pageUrl).pathname; } catch { pathname = pageUrl; }
+    return { pageUrl, pathname, data };
+  });
+  if (inventory) {
+    entries.sort((a, b) =>
+      (inventoryFormAt(inventory, a.pathname) ? 0 : 1) - (inventoryFormAt(inventory, b.pathname) ? 0 : 1)
+    );
+  }
 
+  const accountPath = inventory && inventory.woocommerce && inventory.woocommerce.paths
+    && inventory.woocommerce.paths.myaccount
+    ? normalizePathname(inventory.woocommerce.paths.myaccount)
+    : null;
+
+  for (const { pageUrl, pathname, data } of entries) {
     // Contact form: 2+ text-like fields + a submit button
     if (!detected['contact-form']) {
       for (const form of data.forms) {
@@ -131,7 +197,10 @@ function detectTemplates(inspections, site) {
           ['text', 'email', 'tel', 'textarea'].includes(i.type)
         );
         if (textFields.length >= 2 && form.submitButtons.length > 0) {
-          detected['contact-form'] = { pageUrl, pathname, form };
+          detected['contact-form'] = {
+            pageUrl, pathname, form,
+            inventoryForm: inventoryFormAt(inventory, pathname)
+          };
           break;
         }
       }
@@ -145,8 +214,11 @@ function detectTemplates(inspections, site) {
       detected.search = { pageUrl, pathname, inputs: data.searchInputs };
     }
 
-    // Login: /my-account with credential fields
-    if (!detected.login && /^\/my-account\/?$/.test(pathname)) {
+    // Login: /my-account — or the real my-account path the inventory reports —
+    // with credential fields
+    const isAccountPage = /^\/my-account\/?$/.test(pathname)
+      || (accountPath !== null && normalizePathname(pathname) === accountPath);
+    if (!detected.login && isAccountPage) {
       const hasCredentials = data.forms.some(f =>
         f.inputs.some(i => i.type === 'email' || ['username', 'email'].includes(i.name)) &&
         f.inputs.some(i => i.type === 'password')
@@ -155,9 +227,13 @@ function detectTemplates(inspections, site) {
     }
   }
 
-  // WooCommerce: already handled by add-site, just note its presence
+  // WooCommerce: already handled by add-site, just note its presence — plus
+  // the real shop path when the inventory knows it
   if (site.journeys?.some(j => j.includes('woocommerce'))) {
     detected.woocommerce = { existing: true };
+    const shopPath = inventory && inventory.woocommerce && inventory.woocommerce.paths
+      && inventory.woocommerce.paths.shop;
+    if (shopPath) detected.woocommerce.shopPath = shopPath;
   }
 
   // Custom candidates: data-wpt elements not covered by any template
@@ -179,12 +255,18 @@ function buildJourneyOptions(detected, inspections, site) {
 
   // Contact form
   if (detected['contact-form']) {
-    const { pathname, form } = detected['contact-form'];
+    const { pathname, form, inventoryForm } = detected['contact-form'];
     const contactPath = pathname.replace(/\/$/, '') || '/contact';
 
-    const fields = form.labels
-      .filter(l => l.text)
-      .map(l => ({ label: l.text, value: '' }));
+    // The form schema from the sensor inventory is authoritative for labels —
+    // it lists exactly the fields the form declares, unmuddied by unrelated
+    // <label> elements on the page. DOM labels remain the fallback.
+    const schemaFields = fieldsFromSchema(inventoryForm);
+    const fields = schemaFields.length > 0
+      ? schemaFields
+      : form.labels
+        .filter(l => l.text)
+        .map(l => ({ label: l.text, value: '' }));
 
     const submitBtn = form.submitButtons.find(b => b.dataWpt);
     const submitSelector = submitBtn ? `[data-wpt="${submitBtn.dataWpt}"]` : null;
@@ -222,6 +304,13 @@ function buildJourneyOptions(detected, inspections, site) {
     if (loginPath !== '/my-account') opts.loginPath = loginPath;
     if (Object.keys(opts).length > 0) journeyOptions['templates/login'] = opts;
     if (!site.journeys?.includes('templates/login')) newJourneys.push('templates/login');
+  }
+
+  // WooCommerce: the inventory's real shop path, when it isn't the default.
+  // Same config key add-site writes, so re-running just converges the value.
+  if (detected.woocommerce?.shopPath
+      && normalizePathname(detected.woocommerce.shopPath) !== '/shop') {
+    journeyOptions.woocommerce = { shopPath: detected.woocommerce.shopPath };
   }
 
   return { journeyOptions, newJourneys };
@@ -312,7 +401,7 @@ async function applyResults(site, { journeyOptions, newJourneys }, { dryRun }) {
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
-async function generateJourney(siteKey, { dryRun = false } = {}) {
+async function generateJourney(siteKey, { dryRun = false, sensors = true } = {}) {
   const config = readConfig();
   const site = config.sites.find(s => s.key === siteKey);
   if (!site) {
@@ -320,7 +409,21 @@ async function generateJourney(siteKey, { dryRun = false } = {}) {
   }
 
   console.log(chalk.blue(`\n  Inspecting ${site.name} (${site.url})...`));
-  const inspections = await inspectSite(site);
+
+  // The sensor inventory, when the plugin answers, guides the inspection and
+  // supplies authoritative form schemas. Anything short of a working sensor
+  // (disabled, no creds, plugin absent) leaves inventory null, and every path
+  // below behaves exactly as it did before the plugin existed.
+  let inventory = null;
+  if (sensors) {
+    const client = createSensorClient(site);
+    if (client) inventory = await client.inventory();
+  }
+  if (inventory) {
+    console.log(chalk.dim('  using the sensor inventory to guide inspection (beardbot-sensors plugin)'));
+  }
+
+  const inspections = await inspectSite(site, inventory);
 
   const pageCount = Object.keys(inspections).length;
   if (pageCount === 0) {
@@ -329,8 +432,14 @@ async function generateJourney(siteKey, { dryRun = false } = {}) {
   }
   console.log(chalk.dim(`  Inspected ${pageCount} page(s)`));
 
-  const detected       = detectTemplates(inspections, site);
+  const detected       = detectTemplates(inspections, site, inventory);
   const { journeyOptions, newJourneys } = buildJourneyOptions(detected, inspections, site);
+
+  if (detected['contact-form']?.inventoryForm?.has_recaptcha) {
+    console.log(chalk.yellow('\n  ⚠ The contact form has reCAPTCHA enabled — the contact-form journey will fail until it is disabled on staging.'));
+    console.log(chalk.dim('     Disable the reCAPTCHA field (or the site-wide keys) before running prelaunch-test;'));
+    console.log(chalk.dim('     the preflight "captcha_disabled" check tracks this.'));
+  }
 
   if (detected._customCandidates) {
     noteCustomCandidates(site, detected._customCandidates);
@@ -339,4 +448,12 @@ async function generateJourney(siteKey, { dryRun = false } = {}) {
   await applyResults(site, { journeyOptions, newJourneys }, { dryRun });
 }
 
-module.exports = { generateJourney };
+module.exports = {
+  generateJourney,
+  // Exported for unit tests — pure functions with no browser or network use.
+  detectTemplates,
+  buildJourneyOptions,
+  inventoryPaths,
+  inventoryFormAt,
+  fieldsFromSchema
+};
