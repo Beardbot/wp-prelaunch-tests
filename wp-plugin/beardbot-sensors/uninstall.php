@@ -13,5 +13,7 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 }
 
 require_once __DIR__ . '/includes/Rest/Throttle.php';
+require_once __DIR__ . '/includes/Events.php';
 
 \BeardbotSensors\Rest\Throttle::purge_all();
+\BeardbotSensors\Events::uninstall();

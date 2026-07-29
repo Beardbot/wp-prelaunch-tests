@@ -160,7 +160,7 @@ final class RestPreflightTest extends RestTestCase
         $this->assertSame('pass', $this->checkById($body, 'maintenance_mode')['status']);
         $this->assertSame('fail', $this->checkById($body, 'permalink_structure')['status'], 'The provisioned site uses plain permalinks.');
         $this->assertSame('pass', $this->checkById($body, 'sitemap_present')['status'], 'Core sitemaps are on for a public fresh site.');
-        $this->assertSame('fail', $this->checkById($body, 'sensor_events_ready')['status'], 'The events table arrives in a later slice.');
+        $this->assertSame('pass', $this->checkById($body, 'sensor_events_ready')['status'], 'The events table installs on plugins_loaded.');
     }
 
     // ─── State flips ─────────────────────────────────────────────────────────

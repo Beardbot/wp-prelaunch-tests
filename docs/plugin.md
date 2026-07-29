@@ -29,6 +29,9 @@ what it actually ships; anything not described here does not exist yet.
 - Cache discipline: every response in the namespace carries
   `Cache-Control: no-store, no-cache, must-revalidate`, so a site's page
   cache can never answer a preflight from before the latest settings flip.
+- The effect recorder and events route: server-side proof that a test run's
+  UI success actually produced its effects. With this, the plugin's v1
+  sensor surface is feature-complete.
 
 ## Endpoints
 
@@ -81,8 +84,34 @@ mismatch as plugin-absent.
     failing tells the runner to authenticate via wp-login);
     `permalink_structure` (plain permalinks fail); `sitemap_present` (core
     sitemaps actually enabled, or Yoast/Rank Math present);
-    `sensor_events_ready` (the events table exists — fails until the events
-    sensor ships).
+    `sensor_events_ready` (the events table exists).
+- **`/events?run_id=<id>&limit=<n>`** — the recorded effects for one run,
+  oldest first (`limit` defaults to 100, max 500). Each event:
+  `event_type`, `provider`, `summary`, `request_path`, `created_at`.
+
+## The effect recorder
+
+When — and only when — a request arrives carrying an `X-WPT-Run-ID` header
+matching `^[A-Za-z0-9_-]{8,64}$`, the plugin listens for that request's
+server-side effects and records them against the run id: `wp_mail` handoffs
+(filter at maximum priority, arguments passed through untouched), form
+submissions (Elementor Pro, Gravity Forms, WPForms, Contact Form 7), and new
+WooCommerce orders. For every ordinary visitor, zero hooks are added.
+
+**Privacy contract (enforced by unit test):** summaries carry no PII. A mail
+event stores recipient domains (never local-parts), a 16-hex-character
+truncated SHA-256 of the subject, and the subject length — enough for the
+runner to corroborate "a mail left the site", useless to steal. Form events
+store the form's name and id, never its posted data. Order events store id,
+payment method, total, and status.
+
+**Bounded writes.** The write path is reachable by unauthenticated visitors
+(a form submitter carrying the header), so it is bounded on every axis: the
+run-id pattern gates registration, at most 20 events are recorded per
+request, and rows expire after 7 days via a prune piggybacked on writes at
+most hourly (transient `bbs_last_prune`). The events table is the one
+sanctioned write surface of the otherwise read-only plugin, and uninstall
+drops it.
 
 ## The read-only guarantee
 
