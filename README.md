@@ -79,7 +79,18 @@ A clean Stage 3 result is the go/no-go signal for launch.
 add-site https://staging.example.com
 ```
 
-This crawls the sitemap, detects WooCommerce, extracts pages, and writes a config entry to `sites.json`.
+When the site runs the optional beardbot-sensors companion plugin and its
+credentials are in `.env` (see `docs/plugin.md`), the importer asks the plugin
+for its authoritative inventory instead of guessing: real pages, WooCommerce
+state and paths, a sample test product, and the site's actual name — and it
+works even behind Elementor maintenance mode. The generated entry gains
+`"sensors": { "enabled": true }` so later stages keep using the plugin.
+Without the plugin (or with `--no-sensors`), it crawls the sitemap, detects
+WooCommerce, extracts pages, and writes the config entry exactly as before.
+
+Explicit `http://` URLs are honoured for local development hosts
+(`localhost`, `127.0.0.1`, `*.test`, `*.local`, `*.localhost`); any other
+host is coerced to `https://`.
 
 ## Generating Journey Config
 

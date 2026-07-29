@@ -141,9 +141,11 @@ wp user add-cap beardbot-sensors manage_beardbot_sensors
 wp user application-password create beardbot-sensors runner
 ```
 
-The application password goes in the runner's `.env` (never in `sites.json`);
-the env var names and per-site override convention land with the runner-side
-slice.
+The application password goes in the runner's `.env` (never in `sites.json`):
+`BEARDBOT_SENSOR_USER` / `BEARDBOT_SENSOR_APP_PASSWORD`, with per-site
+overrides suffixed by the mangled site key (see `.env.example`). With the
+credentials in place, `add-site` imports from the plugin's inventory
+automatically; `--no-sensors` opts out.
 
 ## Provenance and the extraction trigger
 

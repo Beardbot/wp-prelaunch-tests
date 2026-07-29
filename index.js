@@ -5,7 +5,12 @@ const minimist = require('minimist');
 const chalk = require('chalk');
 const { runBaseline, runTests, runProductionSmoke } = require('./src/orchestrator');
 
-const args = minimist(process.argv.slice(2), { boolean: ['production', 'dry-run'] });
+// 'sensors' needs an explicit default: minimist initialises declared booleans
+// to false, which would silently disable the sensor path without --no-sensors.
+const args = minimist(process.argv.slice(2), {
+  boolean: ['production', 'dry-run', 'sensors'],
+  default: { sensors: true }
+});
 const mode = args.mode || args.m;
 const siteKeys = args.site
   ? [].concat(args.site)
@@ -31,6 +36,7 @@ async function main() {
     console.log('  prelaunch-test [key ...] --production  — smoke-only checks against productionUrl');
     console.log('  add-site <url> [url2 ...]         — import one or more sites into sites.json');
     console.log('  add-site <url> --dry-run          — preview generated site config without writing');
+    console.log('  add-site <url> --no-sensors       — skip the companion-plugin inventory, use sitemap/DOM only');
     console.log('  generate-journey <key>            — generate journeyOptions config from live DOM');
     console.log('  generate-journey <key> --dry-run  — preview without writing');
     console.log('');
@@ -58,7 +64,7 @@ async function main() {
     const { importSite } = require('./src/site-importer');
     console.log(chalk.blue('Mode: importing site configuration\n'));
     for (const url of siteKeys) {
-      await importSite(url, { dryRun: !!args['dry-run'] });
+      await importSite(url, { dryRun: !!args['dry-run'], sensors: args.sensors !== false });
     }
   } else if (mode === 'generate-journey') {
     if (!siteKeys.length) {
