@@ -188,6 +188,19 @@ final class Controller
                 'sanitize_callback' => 'sanitize_email',
             ],
         ]));
+        register_rest_route(self::REST_NAMESPACE, '/events', $read([self::class, 'events'], [
+            'run_id' => [
+                'type'              => 'string',
+                'required'          => true,
+                'validate_callback' => static fn($value): bool => \BeardbotSensors\Recorder::valid_run_id(is_string($value) ? $value : null),
+            ],
+            'limit'  => [
+                'type'              => 'integer',
+                'default'           => 100,
+                'validate_callback' => static fn($value): bool => is_numeric($value) && (int) $value >= 1 && (int) $value <= 500,
+                'sanitize_callback' => 'absint',
+            ],
+        ]));
     }
 
     /**
@@ -229,6 +242,24 @@ final class Controller
             'api_version'    => API_VERSION,
             'plugin_version' => VERSION,
         ] + \BeardbotSensors\Preflight::collect(is_string($email) && $email !== '' ? $email : null), 200);
+    }
+
+    /**
+     * The recorded effects for one run, oldest first. The run id is the
+     * runner's own token, so this answers "what did MY run cause", never
+     * "what happened on this site".
+     */
+    public static function events(WP_REST_Request $request): WP_REST_Response
+    {
+        $run_id = (string) $request->get_param('run_id');
+        $limit  = (int) $request->get_param('limit');
+
+        return new WP_REST_Response([
+            'api_version'    => API_VERSION,
+            'plugin_version' => VERSION,
+            'run_id'         => $run_id,
+            'events'         => \BeardbotSensors\Events::query($run_id, $limit),
+        ], 200);
     }
 
     /**

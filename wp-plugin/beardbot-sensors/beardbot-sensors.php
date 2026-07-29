@@ -65,6 +65,8 @@ register_activation_hook(__FILE__, static function (): void {
     if ($role && !$role->has_cap(CAPABILITY)) {
         $role->add_cap(CAPABILITY);
     }
+
+    Events::install();
 });
 
 register_deactivation_hook(__FILE__, static function (): void {
@@ -72,6 +74,17 @@ register_deactivation_hook(__FILE__, static function (): void {
     if ($role && $role->has_cap(CAPABILITY)) {
         $role->remove_cap(CAPABILITY);
     }
+});
+
+// ─── Effect recorder ─────────────────────────────────────────────────────────
+// plugins_loaded is early enough to catch every hook the Recorder listens for,
+// and late enough that all form/commerce plugins have registered theirs.
+// maybe_install() covers sites updated by file replacement, where the
+// activation hook never re-fires.
+
+add_action('plugins_loaded', static function (): void {
+    Events::maybe_install();
+    Recorder::arm();
 });
 
 // ─── REST sensor surface ─────────────────────────────────────────────────────
