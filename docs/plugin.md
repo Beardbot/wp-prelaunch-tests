@@ -7,8 +7,14 @@ run's UI success actually produced its effects (form entry, mail handoff,
 order). Decided and scoped in
 [issue #18](https://github.com/Beardbot/wp-prelaunch-tests/issues/18).
 
-**This is a stub.** Each implementation slice extends this document with only
-what it actually ships; anything not described here does not exist yet.
+The v1 surface (version, inventory, preflight, events) is feature-complete
+and integrated with the runner: `add-site` and `generate-journey` consume
+`/inventory`, and `prelaunch-test` runs `/preflight` before journeys, tags
+its browser traffic with an `X-WPT-Run-ID` header, and corroborates journeys
+against `/events`. Which preflight checks block a run is runner-side policy
+in `src/sensor-run.js` — see "Preflight and Server Corroboration" in the
+README for run behaviour. Accepted end-to-end against test.beardbot.dev on
+2026-07-29.
 
 ## What exists today
 
@@ -113,12 +119,20 @@ most hourly (transient `bbs_last_prune`). The events table is the one
 sanctioned write surface of the otherwise read-only plugin, and uninstall
 drops it.
 
+**WAFs and the header (unproven).** No site with Wordfence or a comparable
+WAF has been tested yet. If one strips the `X-WPT-Run-ID` header or blocks
+requests carrying it, journeys will pass with "Server corroboration missing"
+on every run — that pattern on a WAF-carrying site means allowlist the
+header (and document the step here), not that the site is broken. This is
+why corroboration misses are advisory by default (`sensors.strictEffects`
+opts into failing).
+
 ## The read-only guarantee
 
 Every route is GET and nothing in this plugin mutates WordPress state — no
 core options, no posts, no users, ever. The plugin writes only to its own
-storage: its throttle transients, and (in a later slice) its own event table
-and schema-version option. This is a hard rule; PRs that would break it are
+storage: its throttle transients, its own events table, and its
+schema-version option. This is a hard rule; PRs that would break it are
 wrong by definition.
 
 ## Security model

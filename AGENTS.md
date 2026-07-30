@@ -51,12 +51,45 @@ npm run add-site -- <url>
 - Analytics and tracking requests are blocked in every browser context to avoid polluting client dashboards.
 - CSS animations are disabled before visual diff screenshots to prevent false positives.
 - `screenshots.exclude_selectors` (array of CSS selectors) hides elements before every screenshot — used to drop the Elementor sticky header, which a full-page capture otherwise stamps mid-page. Set it globally under `settings` and/or per-site on a site entry (flat or nested under `screenshots`); the lists are merged. Invalid selectors are warned and skipped.
+- `"sensors": { "enabled": true }` on a site makes every stage consult the companion plugin (below): `add-site` and `generate-journey` use its inventory, `prelaunch-test` runs its preflight, injects an `X-WPT-Run-ID` header on same-origin requests, and corroborates journeys against recorded server-side effects. Credentials come from `BEARDBOT_SENSOR_USER`/`BEARDBOT_SENSOR_APP_PASSWORD` env vars (per-site `_<KEY>` override), never `sites.json`.
+- **Optionality invariant:** every sensor feature falls back to the pre-plugin behaviour when the plugin is absent or misconfigured — `src/sensor-client.js` never throws, and callers treat `null` as "plugin does not exist". Preserve this in any change.
+- Which preflight checks block a run is decided in `src/sensor-run.js` (runner-side policy), never in the plugin's PHP — policy changes must not require redeploying the plugin.
+- Every dynamic string interpolated into report HTML goes through `esc()` from `src/reporter.js`.
+
+## Companion sensor plugin (`wp-plugin/`)
+
+PHP subtree in an otherwise Node repo: the read-only `beardbot-sensors`
+WordPress plugin (REST namespace `beardbot-sensors/v1`, namespace
+`BeardbotSensors`, capability `manage_beardbot_sensors`). Full contract,
+security model, and install steps: `docs/plugin.md`. Rules that bind changes
+here:
+
+- **Read-only guarantee:** every route is GET; the plugin writes only its own
+  events table, transients, and schema-version option. PRs that would mutate
+  other WordPress state are wrong by definition.
+- The REST guard classes are **copies** from the beardbot-setup plugin with
+  provenance headers — do not refactor them apart from their source; a third
+  consumer moves them to a shared composer package instead (recorded in
+  `docs/plugin.md`).
+- CI is split by path: `runner-ci.yml` (Node, `src/`+`test/`) and
+  `plugin-ci.yml` (PHP lint, composer validate, unit + integration suites)
+  each ignore the other's subtree, so a green run on one says nothing about
+  the other.
+
+```bash
+bash wp-plugin/build.sh                             # installable zip → .build/  (repo root)
+cd wp-plugin
+composer install                                    # once
+vendor/bin/phpunit --testsuite unit                 # pure PHP, no WordPress
+bash tests/Integration/provision.sh                 # throwaway local WP (Git Bash on Windows)
+```
 
 ## Deeper Documentation
 
 - `docs/workflow.md` — development stage gates, how to add a test, staging checklist
 - `docs/selectors.md` — `data-wpt` convention, Elementor setup, selector priority order
 - `docs/custom-journeys.md` — how to write a custom journey for unique per-site plugins
+- `docs/plugin.md` — the beardbot-sensors companion plugin: endpoints, security model, provenance, development
 
 ## Roadmap
 
