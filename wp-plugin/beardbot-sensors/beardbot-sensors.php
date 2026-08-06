@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Beardbot Site Sensors
  * Description:       Read-only sensor surface for the wp-prelaunch-tests runner: site inventory, pre-flight audit, and test-run effect verification over an application-password-authenticated REST API. This plugin never mutates the site — it writes only to its own event table and transients.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Beardbot
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const VERSION     = '0.1.0';
+const VERSION     = '0.2.0';
 const API_VERSION = 1;
 const CAPABILITY  = 'manage_beardbot_sensors';
 

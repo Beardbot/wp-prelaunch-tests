@@ -1,0 +1,147 @@
+[
+    {
+        "id": "c9b8a0a",
+        "elType": "e-flexbox",
+        "settings": {},
+        "elements": [
+            {
+                "id": "5877ed9",
+                "elType": "e-form",
+                "settings": {
+                    "form-name": { "$$type": "string", "value": "V4 Enquiry" }
+                },
+                "elements": [
+                    {
+                        "id": "cc5d070",
+                        "elType": "widget",
+                        "widgetType": "e-form-label",
+                        "settings": {
+                            "text": { "$$type": "html-v3", "value": { "content": { "$$type": "string", "value": "First name" }, "children": [] } },
+                            "input-id": { "$$type": "string", "value": "e-form-first-name" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "4019297",
+                        "elType": "widget",
+                        "widgetType": "e-form-input",
+                        "settings": {
+                            "type": { "$$type": "string", "value": "text" },
+                            "placeholder": { "$$type": "string", "value": "First name" },
+                            "_cssid": { "$$type": "string", "value": "e-form-first-name" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "2c77563",
+                        "elType": "widget",
+                        "widgetType": "e-form-label",
+                        "settings": {
+                            "text": { "$$type": "html-v3", "value": { "content": { "$$type": "string", "value": "Email" }, "children": [] } },
+                            "input-id": { "$$type": "string", "value": "e-form-email" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "9071ce3",
+                        "elType": "widget",
+                        "widgetType": "e-form-input",
+                        "settings": {
+                            "type": { "$$type": "string", "value": "email" },
+                            "placeholder": { "$$type": "string", "value": "your@mail.com" },
+                            "required": { "$$type": "boolean", "value": true },
+                            "_cssid": { "$$type": "string", "value": "e-form-email" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "48c3cc9",
+                        "elType": "widget",
+                        "widgetType": "e-form-label",
+                        "settings": {
+                            "text": { "$$type": "html-v3", "value": { "content": { "$$type": "string", "value": "Message" }, "children": [] } },
+                            "input-id": { "$$type": "string", "value": "e-form-message" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "8c31ce0",
+                        "elType": "widget",
+                        "widgetType": "e-form-textarea",
+                        "settings": {
+                            "_cssid": { "$$type": "string", "value": "e-form-message" }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "a00dfc6",
+                        "elType": "e-flexbox",
+                        "settings": {},
+                        "elements": [
+                            {
+                                "id": "10e5f3e",
+                                "elType": "widget",
+                                "widgetType": "e-form-checkbox",
+                                "settings": {
+                                    "_cssid": { "$$type": "string", "value": "e-form-checkbox" }
+                                },
+                                "elements": []
+                            },
+                            {
+                                "id": "1aaa75a",
+                                "elType": "widget",
+                                "widgetType": "e-form-label",
+                                "settings": {
+                                    "text": { "$$type": "html-v3", "value": { "content": { "$$type": "string", "value": "Checkbox" }, "children": [] } },
+                                    "input-id": { "$$type": "string", "value": "e-form-checkbox" }
+                                },
+                                "elements": []
+                            }
+                        ]
+                    },
+                    {
+                        "id": "1238132",
+                        "elType": "widget",
+                        "widgetType": "e-form-submit-button",
+                        "settings": {
+                            "text": { "$$type": "html-v3", "value": { "content": { "$$type": "string", "value": "Submit" }, "children": [] } }
+                        },
+                        "elements": []
+                    },
+                    {
+                        "id": "4ce9395",
+                        "elType": "e-form-success-message",
+                        "settings": {},
+                        "elements": [
+                            {
+                                "id": "dea9d8a",
+                                "elType": "widget",
+                                "widgetType": "e-paragraph",
+                                "settings": {
+                                    "paragraph": { "$$type": "string", "value": "Great! We’ve received your information." }
+                                },
+                                "elements": []
+                            }
+                        ]
+                    },
+                    {
+                        "id": "2a52d73",
+                        "elType": "e-form-error-message",
+                        "settings": {},
+                        "elements": [
+                            {
+                                "id": "f83d6c5",
+                                "elType": "widget",
+                                "widgetType": "e-paragraph",
+                                "settings": {
+                                    "paragraph": { "$$type": "string", "value": "We couldn’t process your submission. Please retry" }
+                                },
+                                "elements": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
