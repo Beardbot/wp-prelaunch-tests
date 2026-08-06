@@ -137,6 +137,38 @@ final class RestInventoryTest extends RestTestCase
         );
     }
 
+    /**
+     * The Editor V4 sibling of the test above (issue #27): the seeded page
+     * carries an `e-form` element tree with `$$type`-wrapped props, and the
+     * instance must surface with the same schema shape as a classic form.
+     */
+    public function test_v4_atomic_form_instance_is_found_without_elementor_installed(): void
+    {
+        $instances = $this->inventory()['forms']['instances'] ?? [];
+        $fixture   = null;
+        foreach ($instances as $instance) {
+            if (($instance['form_name'] ?? '') === 'Fixture V4 Form') {
+                $fixture = $instance;
+                break;
+            }
+        }
+
+        $this->assertNotNull($fixture, 'The seeded V4 atomic form must be inventoried.');
+        $this->assertSame('elementor_pro', $fixture['provider']);
+        $this->assertFalse($fixture['has_recaptcha']);
+        $this->assertSame('Send', $fixture['submit_text']);
+        $this->assertStringStartsWith('/', (string) $fixture['page_path']);
+
+        $this->assertSame(
+            [
+                ['type' => 'email', 'label' => 'Email', 'required' => true, 'custom_id' => 'e-form-email'],
+                ['type' => 'textarea', 'label' => '', 'required' => false, 'custom_id' => 'e-form-message'],
+            ],
+            $fixture['fields'],
+            'The V4 field schema must match the seeded element tree exactly.'
+        );
+    }
+
     public function test_woocommerce_block_reports_the_seeded_test_product(): void
     {
         $woo = $this->inventory()['woocommerce'] ?? [];

@@ -60,9 +60,16 @@ mismatch as plugin-absent.
     forms site-wide), `form_name`, `fields[]` (`type`, `label`, `required`,
     `custom_id`), `has_recaptcha`, `submit_text`. Elementor Pro forms are
     found by parsing `_elementor_data` post meta directly (bounded at 200
-    documents) — Elementor does not need to be loaded. Captcha fields set
-    `has_recaptcha` instead of appearing as fillable fields. Contact Form 7
-    is a presence flag only in v1.
+    documents) — Elementor does not need to be loaded. Both storage
+    generations are understood: the classic Form widget (`widgetType: form`
+    with a `form_fields` array) and the Editor V4 atomic form (an `e-form`
+    element whose fields are descendant widgets; a label pairs to its field
+    by its `input-id` prop matching the field's `_cssid`, and both surface
+    in the same schema shape, so the runner never sees which editor built
+    the form). Captcha fields set `has_recaptcha` instead of appearing as
+    fillable fields; no captcha widget exists in the V4 catalogue today,
+    but one appearing later will surface the same way. Contact Form 7 is a
+    presence flag only in v1.
   - `woocommerce` — `active`, `version`, `paths` (shop/cart/checkout/
     myaccount where published), and `test_product_candidates[]` (max 5):
     purchasable, in-stock products priced at or under $5.00 or with "test"
@@ -103,6 +110,17 @@ server-side effects and records them against the run id: `wp_mail` handoffs
 (filter at maximum priority, arguments passed through untouched), form
 submissions (Elementor Pro, Gravity Forms, WPForms, Contact Form 7), and new
 WooCommerce orders. For every ordinary visitor, zero hooks are added.
+
+Elementor's two form generations submit through different pipelines, and
+both are recorded as `form_submission` with provider `elementor_pro`:
+classic forms fire `elementor_pro/forms/new_record`; Editor V4 atomic forms
+fire no submission action at all, so the recorder listens on their
+controller's one extension point, the `elementor_pro/atomic_forms/spam_check`
+filter (at maximum priority, verdict passed through untouched — a
+submission another filter flagged as spam is not recorded). That filter runs
+after validation and before the after-submit actions, so a recorded V4
+submission means "a valid submission arrived", corroborated further by the
+mail event its email action produces.
 
 **Privacy contract (enforced by unit test):** summaries carry no PII. A mail
 event stores recipient domains (never local-parts), a 16-hex-character

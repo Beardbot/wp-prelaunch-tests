@@ -196,6 +196,21 @@ FIXTURE_PAGE_ID="$(wp post create \
   --path="${WP_PATH}")"
 wp post meta update "${FIXTURE_PAGE_ID}" _elementor_data "${ELEMENTOR_DATA}" --path="${WP_PATH}"
 
+echo "==> Seeding a page carrying Editor V4 atomic form meta (issue #27)"
+# Same principle as above: FormScan parses the meta directly, so the V4 shape
+# (elType e-form, $$type-wrapped props, label paired to input via input-id)
+# is provable without Elementor Pro installed. Compact JSON on purpose — the
+# scan's SQL prefilter matches the compact "elType":"e-form" marker only.
+ELEMENTOR_V4_DATA='[{"id":"f1a2b3c4","elType":"e-flexbox","settings":{},"elements":[{"id":"f2b3c4d5","elType":"e-form","settings":{"form-name":{"$$type":"string","value":"Fixture V4 Form"}},"elements":[{"id":"f3c4d5e6","elType":"widget","widgetType":"e-form-label","settings":{"text":{"$$type":"html-v3","value":{"content":{"$$type":"string","value":"Email"},"children":[]}},"input-id":{"$$type":"string","value":"e-form-email"}},"elements":[]},{"id":"f4d5e6f7","elType":"widget","widgetType":"e-form-input","settings":{"type":{"$$type":"string","value":"email"},"required":{"$$type":"boolean","value":true},"_cssid":{"$$type":"string","value":"e-form-email"}},"elements":[]},{"id":"f5e6f7a8","elType":"widget","widgetType":"e-form-textarea","settings":{"_cssid":{"$$type":"string","value":"e-form-message"}},"elements":[]},{"id":"f6f7a8b9","elType":"widget","widgetType":"e-form-submit-button","settings":{"text":{"$$type":"html-v3","value":{"content":{"$$type":"string","value":"Send"},"children":[]}}},"elements":[]}]}]}]'
+FIXTURE_V4_PAGE_ID="$(wp post create \
+  --post_type=page \
+  --post_title="Fixture V4 Form" \
+  --post_name=fixture-v4-form \
+  --post_status=publish \
+  --porcelain \
+  --path="${WP_PATH}")"
+wp post meta update "${FIXTURE_V4_PAGE_ID}" _elementor_data "${ELEMENTOR_V4_DATA}" --path="${WP_PATH}"
+
 echo ""
 echo "Provisioned. Run the integration suite with:"
 echo "  export BEARDBOT_SENSORS_TEST_WP_PATH=${WP_PATH}"

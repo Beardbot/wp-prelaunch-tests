@@ -92,6 +92,7 @@ final class Recorder
 
         add_filter('wp_mail', [self::class, 'on_mail'], PHP_INT_MAX);
         add_action('elementor_pro/forms/new_record', [self::class, 'on_elementor_record'], 10, 2);
+        add_filter('elementor_pro/atomic_forms/spam_check', [self::class, 'on_atomic_form_spam_check'], PHP_INT_MAX, 3);
         add_action('gform_after_submission', [self::class, 'on_gform_submission'], 10, 2);
         add_action('wpforms_process_complete', [self::class, 'on_wpforms_complete'], 10, 4);
         add_action('wpcf7_mail_sent', [self::class, 'on_cf7_mail_sent']);
@@ -129,6 +130,55 @@ final class Recorder
         }
 
         return $atts;
+    }
+
+    /**
+     * Editor V4 atomic forms fire no submission action — their controller's
+     * only extension point is the `elementor_pro/atomic_forms/spam_check`
+     * filter, which runs after nonce and field validation and before the
+     * after-submit actions execute (verified against Elementor Pro 4.2.1 and
+     * live on test.beardbot.dev, issue #27). Listening at PHP_INT_MAX means
+     * every real spam filter has already spoken: a submission flagged spam is
+     * not recorded, and the incoming verdict passes through untouched.
+     *
+     * @param mixed $is_spam
+     * @param mixed $form_fields
+     * @param mixed $widget_settings
+     * @return mixed
+     */
+    public static function on_atomic_form_spam_check($is_spam, $form_fields = [], $widget_settings = [])
+    {
+        if (!$is_spam) {
+            self::record('form_submission', 'elementor_pro', self::summarise_atomic_form(
+                is_array($widget_settings) ? $widget_settings : [],
+                isset($_POST['form_name']) ? (string) $_POST['form_name'] : '',
+                isset($_POST['form_id']) ? (string) $_POST['form_id'] : ''
+            ));
+        }
+
+        return $is_spam;
+    }
+
+    /**
+     * Pure summary shaping for a V4 submission. The form name prefers the
+     * server-side widget settings (resolved `form-name` prop) over the posted
+     * value; both posted values are visitor-supplied, so they are bounded the
+     * same way the run id is — nothing here may grow the row unbounded.
+     *
+     * @param array<string, mixed> $widget_settings
+     * @return array{form_name: string, form_id: string}
+     */
+    public static function summarise_atomic_form(array $widget_settings, string $posted_form_name, string $posted_form_id): array
+    {
+        $form_name = $widget_settings['form-name'] ?? '';
+        if (!is_string($form_name) || $form_name === '') {
+            $form_name = $posted_form_name;
+        }
+
+        return [
+            'form_name' => substr($form_name, 0, 128),
+            'form_id'   => substr($posted_form_id, 0, 64),
+        ];
     }
 
     /** @param mixed $record @param mixed $handler */

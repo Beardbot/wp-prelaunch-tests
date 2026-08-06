@@ -100,4 +100,44 @@ final class RecorderTest extends TestCase
         $this->assertSame([], $summary['to_domains']);
         $this->assertSame(0, $summary['subject_length']);
     }
+
+    // ─── V4 atomic form submissions (issue #27) ──────────────────────────────
+
+    public function test_atomic_form_summary_prefers_server_side_settings_over_posted_name(): void
+    {
+        $summary = Recorder::summarise_atomic_form(
+            ['form-name' => 'Stored Name'],
+            'Posted Name',
+            '5877ed9'
+        );
+
+        $this->assertSame(['form_name' => 'Stored Name', 'form_id' => '5877ed9'], $summary);
+    }
+
+    public function test_atomic_form_summary_falls_back_to_the_posted_name(): void
+    {
+        $summary = Recorder::summarise_atomic_form([], 'Posted Name', '5877ed9');
+
+        $this->assertSame('Posted Name', $summary['form_name']);
+    }
+
+    /** Posted values are visitor-supplied — the summary must bound them. */
+    public function test_atomic_form_summary_bounds_visitor_supplied_values(): void
+    {
+        $summary = Recorder::summarise_atomic_form([], str_repeat('n', 500), str_repeat('i', 500));
+
+        $this->assertSame(128, strlen($summary['form_name']));
+        $this->assertSame(64, strlen($summary['form_id']));
+    }
+
+    /**
+     * The spam_check listener is a FILTER on someone else's pipeline: the
+     * verdict must pass through untouched whether or not we record. (With no
+     * armed run id, record() is a no-op, so calling the handler here is safe.)
+     */
+    public function test_spam_check_verdict_passes_through_untouched(): void
+    {
+        $this->assertFalse(Recorder::on_atomic_form_spam_check(false, [], []));
+        $this->assertTrue(Recorder::on_atomic_form_spam_check(true, [], []));
+    }
 }
